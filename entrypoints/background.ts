@@ -21,7 +21,7 @@ export default defineBackground({
 
         if (message.type === 'incrementCount') {
           browser.storage.local.get('demoCount').then((result) => {
-            const count = (result.demoCount ?? 0) + 1;
+            const count = (result.demoCount as number | undefined) ?? 0 + 1;
             browser.storage.local.set({ demoCount: count });
             sendResponse({ count });
           });
