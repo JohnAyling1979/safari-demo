@@ -1,0 +1,22 @@
+{
+  "name": "safari-demo",
+  "version": "1.0.0",
+  "description": "WXT Safari extension demo showcasing all extension components",
+  "type": "module",
+  "scripts": {
+    "dev": "wxt",
+    "dev:safari": "wxt -b safari",
+    "build": "wxt build",
+    "build:safari": "wxt build -b safari",
+    "zip": "wxt zip",
+    "zip:safari": "wxt zip -b safari",
+    "postinstall": "wxt prepare",
+    "generate-icons": "node scripts/generate-icons.mjs",
+    "prebuild": "pnpm run generate-icons"
+  },
+  "devDependencies": {
+    "jimp": "^1.6.0",
+    "typescript": "^5.0.0",
+    "wxt": "^0.20.0"
+  }
+}
