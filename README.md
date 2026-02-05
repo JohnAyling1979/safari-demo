@@ -31,7 +31,15 @@ pnpm zip:safari
 
 ## Safari Installation
 
+**Required first:** Unsigned development extensions only appear in Safari when "Allow Unsigned Extensions" is enabled:
+
+1. Safari → Settings → Advanced → enable **Show features for web developers**
+2. Develop menu → enable **Allow Unsigned Extensions**
+3. Keep the app running when checking Safari → Settings → Extensions
+
+Then:
+
 1. Build: `pnpm build:safari`
 2. Convert to Xcode project: `xcrun safari-web-extension-converter .output/safari-mv2/`
-3. Open the generated Xcode project and run it to install the extension
-4. Enable the extension in Safari → Settings → Extensions
+3. Open the generated Xcode project, select **My Mac** as destination, and run (⌘R)
+4. With the app running, open Safari → Settings → Extensions and enable the extension
