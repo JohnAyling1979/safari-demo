@@ -1,6 +1,7 @@
 import './style.css';
 
 async function init() {
+  console.log('[Safari Demo] Popup script loaded');
   const app = document.getElementById('app')!;
 
   // Get current tab
@@ -17,7 +18,13 @@ async function init() {
     : { title: 'N/A', url: 'N/A' };
 
   // Get count from background
-  const { count } = await browser.runtime.sendMessage({ type: 'getCount' });
+  const { count, _debugLastRun } = await browser.runtime.sendMessage({
+    type: 'getCount',
+  });
+  const lastRunStr =
+    _debugLastRun != null
+      ? `Background ran ${Math.round((Date.now() - _debugLastRun) / 1000)}s ago`
+      : 'Background did not respond';
 
   app.innerHTML = `
     <div class="popup">
@@ -32,6 +39,7 @@ async function init() {
       <section>
         <h2>Storage Demo</h2>
         <p>Message count: <strong id="count">${count ?? 0}</strong></p>
+        <p class="debug" id="debug">${lastRunStr}</p>
         <button id="increment">Increment</button>
       </section>
       <section>
@@ -41,10 +49,13 @@ async function init() {
   `;
 
   document.getElementById('increment')?.addEventListener('click', async () => {
-    const { count: newCount } = await browser.runtime.sendMessage({
-      type: 'incrementCount',
-    });
+    const { count: newCount, _debugLastRun } =
+      await browser.runtime.sendMessage({ type: 'incrementCount' });
     document.getElementById('count')!.textContent = String(newCount ?? 0);
+    const debugEl = document.getElementById('debug');
+    if (debugEl && _debugLastRun) {
+      debugEl.textContent = `Background ran ${Math.round((Date.now() - _debugLastRun) / 1000)}s ago`;
+    }
   });
 
   document.getElementById('options')?.addEventListener('click', (e) => {

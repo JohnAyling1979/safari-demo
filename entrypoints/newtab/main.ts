@@ -1,6 +1,7 @@
 import './style.css';
 
 function init() {
+  console.log('[Safari Demo] New tab script loaded');
   const app = document.getElementById('app')!;
 
   app.innerHTML = `

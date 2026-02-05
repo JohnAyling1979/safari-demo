@@ -58,3 +58,9 @@ button:hover {
 #options:hover {
   text-decoration: underline;
 }
+
+.debug {
+  font-size: 11px;
+  color: #666;
+  margin: 4px 0 8px;
+}

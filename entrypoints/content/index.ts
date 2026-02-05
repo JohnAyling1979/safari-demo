@@ -4,6 +4,7 @@ export default defineContentScript({
   matches: ['*://*/*'],
   cssInjectionMode: 'ui',
   async main(ctx) {
+    console.log('[Safari Demo] Content script loaded on', window.location.href);
     const ui = await createShadowRootUi(ctx, {
       name: 'safari-demo-badge',
       position: 'overlay',
