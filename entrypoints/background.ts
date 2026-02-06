@@ -1,8 +1,12 @@
+// Session tracking - new values on each background reload
+const sessionId = crypto.randomUUID();
+const loadedAt = new Date().toISOString();
+
 export default defineBackground({
   // Required for iOS/iPadOS - persistent background not supported
   persistent: false,
   main() {
-    console.log('[Safari Demo] Background script loaded');
+    console.log('[Safari Demo] Background script loaded', { sessionId, loadedAt });
 
     // Initialize demo count in storage
     browser.storage.local.get('demoCount').then((result) => {
@@ -38,6 +42,29 @@ export default defineBackground({
           browser.storage.local.set({ demoCount: 0 });
           sendResponse({ count: 0 });
           return false;
+        }
+
+        if (message.type === 'getSessionInfo') {
+          sendResponse({ sessionId, loadedAt });
+          return false;
+        }
+
+        if (message.type === 'ping') {
+          sendResponse({ pong: true, sessionId, loadedAt });
+          return false;
+        }
+
+        if (message.type === 'pingContentScript') {
+          const tabId = (message as { type: string; tabId: number }).tabId;
+          if (tabId != null) {
+            browser.tabs
+              .sendMessage(tabId, { type: 'pingFromPopup' })
+              .then(() => sendResponse({ ok: true }))
+              .catch((err) => sendResponse({ error: String(err) }));
+          } else {
+            sendResponse({ error: 'No tabId provided' });
+          }
+          return true;
         }
 
         if (message.type === 'contentScriptMounted') {

@@ -25,3 +25,24 @@
   opacity: 0.9;
   word-break: break-all;
 }
+
+.demo-badge .session-info {
+  margin: 8px 0 8px;
+  font-size: 11px;
+  opacity: 0.95;
+  word-break: break-all;
+}
+
+.demo-badge .demo-ping-btn {
+  padding: 6px 12px;
+  background: rgba(255, 255, 255, 0.25);
+  color: white;
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.demo-badge .demo-ping-btn:hover {
+  background: rgba(255, 255, 255, 0.35);
+}
