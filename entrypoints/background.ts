@@ -4,11 +4,6 @@ export default defineBackground({
   main() {
     console.log('[Safari Demo] Background script loaded');
 
-    // Fires when the non-persistent background is about to be unloaded (MV2 event pages only)
-    browser.runtime.onSuspend?.addListener(() => {
-      console.log('[Safari Demo] Background script unloading (suspended)');
-    });
-
     // Initialize demo count in storage
     browser.storage.local.get('demoCount').then((result) => {
       if (result.demoCount == null) {
@@ -21,25 +16,28 @@ export default defineBackground({
       (message: { type: string }, sender, sendResponse) => {
         if (message.type === 'getCount') {
           console.log('[Safari Demo] Getting count from storage');
-          const now = Date.now();
           browser.storage.local.get('demoCount').then((result) => {
-            browser.storage.local.set({ _debugLastRun: now });
-            sendResponse({ count: result.demoCount ?? 0, _debugLastRun: now });
+            sendResponse({ count: result.demoCount ?? 0 });
           });
           return true; // Keep channel open for async response
         }
 
         if (message.type === 'incrementCount') {
           console.log('[Safari Demo] Incrementing count');
-          const now = Date.now();
           browser.storage.local.get('demoCount').then((result) => {
-            browser.storage.local.set({ _debugLastRun: now });
             const currentCount = (result.demoCount ?? 0) as number;
             const count = currentCount + 1;
             browser.storage.local.set({ demoCount: count });
-            sendResponse({ count, _debugLastRun: now });
+            sendResponse({ count });
           });
           return true;
+        }
+
+        if (message.type === 'clearCount') {
+          console.log('[Safari Demo] Clearing count');
+          browser.storage.local.set({ demoCount: 0 });
+          sendResponse({ count: 0 });
+          return false;
         }
 
         if (message.type === 'contentScriptMounted') {
