@@ -1,10 +1,4 @@
-import './style.css';
-
-function init() {
-  console.log('safari-demo:newtab: New tab script loaded');
-  const app = document.getElementById('app')!;
-
-  app.innerHTML = `
+import{b as t}from"./browser-BnURzfs5.js";function n(){console.log("safari-demo:newtab: New tab script loaded");const e=document.getElementById("app");e.innerHTML=`
     <div class="newtab">
       <h1>Safari Demo Extension</h1>
       <p class="subtitle">Welcome! This extension demonstrates all components.</p>
@@ -29,11 +23,4 @@ function init() {
         </div>
       </div>
     </div>
-  `;
-
-  document.getElementById('open-options')?.addEventListener('click', () => {
-    browser.runtime.openOptionsPage();
-  });
-}
-
-init();
+  `,document.getElementById("open-options")?.addEventListener("click",()=>{t.runtime.openOptionsPage()})}n();

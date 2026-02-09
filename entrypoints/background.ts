@@ -6,7 +6,7 @@ export default defineBackground({
   // Required for iOS/iPadOS - persistent background not supported
   persistent: false,
   main() {
-    console.log('[Safari Demo] Background script loaded', { sessionId, loadedAt });
+    console.log('safari-demo:background: Background script loaded', { sessionId, loadedAt });
 
     // Initialize demo count in storage
     browser.storage.local.get('demoCount').then((result) => {
@@ -19,7 +19,7 @@ export default defineBackground({
     browser.runtime.onMessage.addListener(
       (message: { type: string }, sender, sendResponse) => {
         if (message.type === 'getCount') {
-          console.log('[Safari Demo] Getting count from storage');
+          console.log('safari-demo:background: Getting count from storage');
           browser.storage.local.get('demoCount').then((result) => {
             sendResponse({ count: result.demoCount ?? 0 });
           });
@@ -27,7 +27,7 @@ export default defineBackground({
         }
 
         if (message.type === 'incrementCount') {
-          console.log('[Safari Demo] Incrementing count');
+          console.log('safari-demo:background: Incrementing count');
           browser.storage.local.get('demoCount').then((result) => {
             const currentCount = (result.demoCount ?? 0) as number;
             const count = currentCount + 1;
@@ -38,7 +38,7 @@ export default defineBackground({
         }
 
         if (message.type === 'clearCount') {
-          console.log('[Safari Demo] Clearing count');
+          console.log('safari-demo:background: Clearing count');
           browser.storage.local.set({ demoCount: 0 });
           sendResponse({ count: 0 });
           return false;
@@ -85,16 +85,14 @@ export default defineBackground({
           const appName = 'com.powernotes.safari-demo-extension';
           browser.runtime
             .sendNativeMessage(appName, { type: 'getSharedFile' })
-            .then((response: { name?: string; size?: number }) => {
+            .then((response: { pdfUrl?: string | null }) => {
               sendResponse({
-                name: response?.name ?? null,
-                size: response?.size ?? 0,
+                pdfUrl: response?.pdfUrl ?? null,
               });
             })
             .catch((err) => {
               sendResponse({
-                name: null,
-                size: 0,
+                pdfUrl: null,
                 error: String(err),
               });
             });

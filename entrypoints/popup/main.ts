@@ -1,7 +1,7 @@
 import './style.css';
 
 async function init() {
-  console.log('[Safari Demo] Popup script loaded');
+  console.log('safari-demo:popup: Popup script loaded');
   const app = document.getElementById('app')!;
 
   // Get current tab
@@ -17,41 +17,29 @@ async function init() {
       }
     : { title: 'N/A', url: 'N/A' };
 
-  // Get count, session info, and shared file from background
+  // Get count, session info, and shared PDF URL from background
   const [{ count }, { sessionId, loadedAt }, sharedFile] = await Promise.all([
     browser.runtime.sendMessage({ type: 'getCount' }),
     browser.runtime.sendMessage({ type: 'getSessionInfo' }),
-    browser.runtime.sendMessage({ type: 'getSharedFile' }).catch(() => ({ name: null, size: 0 })),
+    browser.runtime.sendMessage({ type: 'getSharedFile' }).catch(() => ({ pdfUrl: null })),
   ]);
 
   const truncatedSessionId =
     sessionId != null ? `${String(sessionId).slice(0, 8)}…` : '—';
 
-  const sharedFileName = sharedFile?.name ?? null;
-  const sharedFileSize = sharedFile?.size ?? 0;
-  const sharedText = sharedFile?.text ?? null;
-  const sharedImageBase64 = sharedFile?.imageDataBase64 ?? null;
-  const sharedFileDisplay = sharedFileName
-    ? `${escapeHtml(sharedFileName)} (${formatBytes(sharedFileSize)})`
-    : '—';
-  const sharedTextDisplay =
-    sharedText != null
-      ? `<p class="label">Shared text:</p><p class="value shared-text" id="sharedText">${escapeHtml(sharedText)}</p>`
-      : '';
-  const sharedImageDisplay =
-    sharedImageBase64 != null
-      ? `<p class="label">Shared image:</p><img class="shared-image" id="sharedImage" src="data:image/jpeg;base64,${sharedImageBase64}" alt="Shared" />`
-      : '';
+  const pdfUrl = sharedFile?.pdfUrl ?? null;
+  const sharedPdfDisplay =
+    pdfUrl != null
+      ? `<a class="value url" id="sharedPdfLink" href="${escapeHtml(pdfUrl)}" target="_blank" rel="noopener">${escapeHtml(pdfUrl)}</a>`
+      : '<p class="value" id="sharedPdfLink">—</p>';
 
   app.innerHTML = `
     <div class="popup">
       <h1>Safari Demo</h1>
       <section>
-        <h2>Shared File / Text / Image</h2>
-        <p class="label">Last shared:</p>
-        <p class="value" id="sharedFile">${sharedFileDisplay}</p>
-        ${sharedTextDisplay}
-        ${sharedImageDisplay}
+        <h2>Shared PDF</h2>
+        <p class="label">Uploaded PDF URL:</p>
+        ${sharedPdfDisplay}
         <div class="button-row">
           <button id="refreshSharedFile">Refresh</button>
         </div>
@@ -155,24 +143,14 @@ async function init() {
   document.getElementById('refreshSharedFile')?.addEventListener('click', async () => {
     const sharedFile = await browser.runtime
       .sendMessage({ type: 'getSharedFile' })
-      .catch(() => ({ name: null, size: 0, text: null, imageDataBase64: null }));
-    const el = document.getElementById('sharedFile');
+      .catch(() => ({ pdfUrl: null }));
+    const el = document.getElementById('sharedPdfLink');
     if (el) {
-      el.textContent = sharedFile?.name
-        ? `${sharedFile.name} (${formatBytes(sharedFile.size ?? 0)})`
-        : '—';
-    }
-    const textEl = document.getElementById('sharedText');
-    if (textEl) {
-      textEl.textContent = sharedFile?.text ?? '—';
-    }
-    const imgEl = document.getElementById('sharedImage') as HTMLImageElement | null;
-    if (imgEl) {
-      if (sharedFile?.imageDataBase64) {
-        imgEl.src = `data:image/jpeg;base64,${sharedFile.imageDataBase64}`;
-        imgEl.style.display = '';
+      const url = sharedFile?.pdfUrl ?? null;
+      if (url) {
+        el.outerHTML = `<a class="value url" id="sharedPdfLink" href="${escapeHtml(url)}" target="_blank" rel="noopener">${escapeHtml(url)}</a>`;
       } else {
-        imgEl.style.display = 'none';
+        el.outerHTML = '<p class="value" id="sharedPdfLink">—</p>';
       }
     }
   });

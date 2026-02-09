@@ -4,6 +4,7 @@
 //
 
 import UniformTypeIdentifiers
+import os.log
 
 #if os(iOS)
 import UIKit
@@ -14,11 +15,9 @@ typealias PlatformViewController = NSViewController
 #endif
 
 private let appGroupSuiteName = "group.com.powernotes.safari-demo-extension"
-private let lastSharedFileNameKey = "lastSharedFileName"
-private let lastSharedFileSizeKey = "lastSharedFileSize"
-private let lastSharedTextKey = "lastSharedText"
-private let lastSharedImagePathKey = "lastSharedImagePath"
-private let sharedImageFileName = "lastSharedImage.jpg"
+private let lastSharedPdfUrlKey = "lastSharedPdfUrl"
+private let uploadURLString = "http://127.0.0.1:5001/upload"
+private let pdfViewURLBase = "http://localhost:5001/view"
 
 class ShareViewController: PlatformViewController {
 
@@ -31,14 +30,13 @@ class ShareViewController: PlatformViewController {
     private func processSharedItems() {
         guard let extensionContext = extensionContext,
               let inputItems = extensionContext.inputItems as? [NSExtensionItem] else {
-            completeRequest()
+            showStatus("Upload failed")
+            completeRequest(afterDelay: 0.8)
             return
         }
 
         let fileURLType = UTType.fileURL.identifier
         let urlType = UTType.url.identifier
-        let plainTextType = UTType.plainText.identifier
-        let imageType = UTType.image.identifier
         let group = DispatchGroup()
         var foundProvider = false
 
@@ -51,7 +49,11 @@ class ShareViewController: PlatformViewController {
                     provider.loadItem(forTypeIdentifier: fileURLType, options: nil) { [weak self] item, _ in
                         defer { group.leave() }
                         if let url = item as? URL {
-                            self?.saveFileInfo(url: url)
+                            self?.handleFileURL(url)
+                        } else if let data = item as? Data {
+                            self?.uploadPDF(data)
+                        } else {
+                            self?.finishWithFailure("Not a PDF")
                         }
                     }
                     break
@@ -61,28 +63,10 @@ class ShareViewController: PlatformViewController {
                     group.enter()
                     provider.loadItem(forTypeIdentifier: urlType, options: nil) { [weak self] item, _ in
                         defer { group.leave() }
-                        if let url = item as? URL {
-                            self?.saveURLInfo(url: url)
-                        }
-                    }
-                    break
-                }
-                if provider.hasItemConformingToTypeIdentifier(imageType) {
-                    foundProvider = true
-                    group.enter()
-                    provider.loadItem(forTypeIdentifier: imageType, options: nil) { [weak self] item, _ in
-                        defer { group.leave() }
-                        self?.saveImageItem(item)
-                    }
-                    break
-                }
-                if provider.hasItemConformingToTypeIdentifier(plainTextType) {
-                    foundProvider = true
-                    group.enter()
-                    provider.loadItem(forTypeIdentifier: plainTextType, options: nil) { [weak self] item, _ in
-                        defer { group.leave() }
-                        if let text = item as? String {
-                            self?.saveTextInfo(text: text)
+                        if let url = item as? URL, !url.isFileURL {
+                            self?.handleWebURL(url)
+                        } else {
+                            self?.finishWithFailure("Not a PDF")
                         }
                     }
                     break
@@ -92,79 +76,120 @@ class ShareViewController: PlatformViewController {
         }
 
         if foundProvider {
-            group.notify(queue: .main) { [weak self] in
-                self?.showStatus("Saved")
-                self?.completeRequest(afterDelay: 0.6)
-            }
+            // Completion happens in finishWithSuccess / finishWithFailure when upload completes
+            // (or from handleFileURL/handleWebURL when validation fails)
         } else {
             showStatus("Unsupported type")
             completeRequest(afterDelay: 0.8)
         }
     }
 
-    private func saveFileInfo(url: URL) {
-        let name = url.lastPathComponent
-        var size: Int = 0
-        if let value = try? url.resourceValues(forKeys: [.fileSizeKey]).fileSize {
-            size = value
-        }
-        UserDefaults(suiteName: appGroupSuiteName)?.set(name, forKey: lastSharedFileNameKey)
-        UserDefaults(suiteName: appGroupSuiteName)?.set(size, forKey: lastSharedFileSizeKey)
-        UserDefaults(suiteName: appGroupSuiteName)?.removeObject(forKey: lastSharedImagePathKey)
-        UserDefaults(suiteName: appGroupSuiteName)?.synchronize()
+    private func isPDFFile(_ url: URL) -> Bool {
+        url.pathExtension.lowercased() == "pdf" ||
+        (try? url.resourceValues(forKeys: [.typeIdentifierKey]).typeIdentifier)
+            .map { UTType($0)?.conforms(to: .pdf) ?? false } ?? false
     }
 
-    private func saveURLInfo(url: URL) {
-        UserDefaults(suiteName: appGroupSuiteName)?.set(url.absoluteString, forKey: lastSharedFileNameKey)
-        UserDefaults(suiteName: appGroupSuiteName)?.set(0, forKey: lastSharedFileSizeKey)
-        UserDefaults(suiteName: appGroupSuiteName)?.removeObject(forKey: lastSharedImagePathKey)
-        UserDefaults(suiteName: appGroupSuiteName)?.synchronize()
-    }
-
-    private func saveTextInfo(text: String) {
-        UserDefaults(suiteName: appGroupSuiteName)?.set(text, forKey: lastSharedTextKey)
-        let preview = String(text.prefix(200))
-        UserDefaults(suiteName: appGroupSuiteName)?.set(preview, forKey: lastSharedFileNameKey)
-        UserDefaults(suiteName: appGroupSuiteName)?.set(text.count, forKey: lastSharedFileSizeKey)
-        UserDefaults(suiteName: appGroupSuiteName)?.removeObject(forKey: lastSharedImagePathKey)
-        UserDefaults(suiteName: appGroupSuiteName)?.synchronize()
-    }
-
-    private func saveImageItem(_ item: NSSecureCoding?) {
-        guard let containerURL = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: appGroupSuiteName) else { return }
-        let destURL = containerURL.appendingPathComponent(sharedImageFileName)
-
-        if let url = item as? URL, url.isFileURL {
-            do {
-                let data = try Data(contentsOf: url)
-                try data.write(to: destURL)
-                saveImageInfo(fileURL: destURL, size: data.count)
-            } catch {}
+    private func handleFileURL(_ url: URL) {
+        guard url.isFileURL, isPDFFile(url) else {
+            finishWithFailure("Not a PDF")
             return
         }
-
-        #if os(iOS)
-        if let image = item as? UIImage, let data = image.jpegData(compressionQuality: 0.9) {
-            try? data.write(to: destURL)
-            saveImageInfo(fileURL: destURL, size: data.count)
+        do {
+            let data = try Data(contentsOf: url)
+            uploadPDF(data)
+        } catch {
+            finishWithFailure("Upload failed")
         }
-        #elseif os(macOS)
-        if let image = item as? NSImage,
-           let tiff = image.tiffRepresentation,
-           let bitmap = NSBitmapImageRep(data: tiff),
-           let data = bitmap.representation(using: .jpeg, properties: [.compressionFactor: 0.9]) {
-            try? data.write(to: destURL)
-            saveImageInfo(fileURL: destURL, size: data.count)
-        }
-        #endif
     }
 
-    private func saveImageInfo(fileURL: URL, size: Int) {
-        UserDefaults(suiteName: appGroupSuiteName)?.set(sharedImageFileName, forKey: lastSharedFileNameKey)
-        UserDefaults(suiteName: appGroupSuiteName)?.set(size, forKey: lastSharedFileSizeKey)
-        UserDefaults(suiteName: appGroupSuiteName)?.set(fileURL.path, forKey: lastSharedImagePathKey)
-        UserDefaults(suiteName: appGroupSuiteName)?.removeObject(forKey: lastSharedTextKey)
-        UserDefaults(suiteName: appGroupSuiteName)?.synchronize()
+    private func handleWebURL(_ url: URL) {
+        var request = URLRequest(url: url)
+        request.httpMethod = "GET"
+        let task = URLSession.shared.dataTask(with: request) { [weak self] data, response, _ in
+            guard let self = self else { return }
+            guard let data = data,
+                  let http = response as? HTTPURLResponse,
+                  (200...299).contains(http.statusCode) else {
+                DispatchQueue.main.async { self.finishWithFailure("Upload failed") }
+                return
+            }
+            let contentType = (http.allHeaderFields["Content-Type"] as? String)?.lowercased() ?? ""
+            let isPDF = contentType.contains("application/pdf") || url.path.lowercased().hasSuffix(".pdf")
+            guard isPDF else {
+                DispatchQueue.main.async { self.finishWithFailure("Not a PDF") }
+                return
+            }
+            self.uploadPDF(data)
+        }
+        task.resume()
+    }
+
+    private func uploadPDF(_ data: Data) {
+        os_log(.default, "safari-demo:ShareViewController: upload starting, payload size %{public}zu bytes", data.count)
+        guard let url = URL(string: uploadURLString) else {
+            os_log(.default, "safari-demo:ShareViewController: upload failed - invalid upload URL")
+            finishWithFailure("Upload failed")
+            return
+        }
+        let boundary = "Boundary-\(UUID().uuidString)"
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
+        var body = Data()
+        body.append("--\(boundary)\r\n".data(using: .utf8)!)
+        body.append("Content-Disposition: form-data; name=\"file\"; filename=\"upload.pdf\"\r\n".data(using: .utf8)!)
+        body.append("Content-Type: application/pdf\r\n\r\n".data(using: .utf8)!)
+        body.append(data)
+        body.append("\r\n--\(boundary)--\r\n".data(using: .utf8)!)
+        request.httpBody = body
+
+        let task = URLSession.shared.dataTask(with: request) { [weak self] responseData, response, error in
+            guard let self = self else { return }
+            if let error = error {
+                os_log(.default, "safari-demo:ShareViewController: upload network error %{public}@", String(describing: error))
+                DispatchQueue.main.async { self.finishWithFailure("Upload failed") }
+                return
+            }
+            guard let http = response as? HTTPURLResponse else {
+                os_log(.default, "safari-demo:ShareViewController: upload failed - no HTTP response")
+                DispatchQueue.main.async { self.finishWithFailure("Upload failed") }
+                return
+            }
+            os_log(.default, "safari-demo:ShareViewController: upload response status %{public}ld, body length %{public}zu", http.statusCode, responseData?.count ?? 0)
+            guard (200...299).contains(http.statusCode) else {
+                os_log(.default, "safari-demo:ShareViewController: upload failed - status %{public}ld", http.statusCode)
+                DispatchQueue.main.async { self.finishWithFailure("Upload failed") }
+                return
+            }
+            guard let data = responseData,
+                  let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                  let sha256 = json["sha256"] as? String,
+                  !sha256.isEmpty else {
+                os_log(.default, "safari-demo:ShareViewController: upload failed - invalid or missing JSON sha256 (raw: %{public}@)", String(data: responseData ?? Data(), encoding: .utf8) ?? "")
+                DispatchQueue.main.async { self.finishWithFailure("Upload failed") }
+                return
+            }
+            os_log(.default, "safari-demo:ShareViewController: upload success sha256 %{public}@", sha256)
+            let viewURL = "\(pdfViewURLBase)/\(sha256)"
+            UserDefaults(suiteName: appGroupSuiteName)?.set(viewURL, forKey: lastSharedPdfUrlKey)
+            UserDefaults(suiteName: appGroupSuiteName)?.synchronize()
+            os_log(.default, "safari-demo:ShareViewController: saved pdfUrl to app group: %{public}@", viewURL)
+            DispatchQueue.main.async { self.finishWithSuccess() }
+        }
+        task.resume()
+    }
+
+    private func finishWithSuccess() {
+        showStatus("Saved")
+        completeRequest(afterDelay: 0.6)
+    }
+
+    private func finishWithFailure(_ message: String) {
+        DispatchQueue.main.async { [weak self] in
+            self?.showStatus(message)
+            self?.completeRequest(afterDelay: 0.8)
+        }
     }
 
     private func showStatus(_ message: String) {

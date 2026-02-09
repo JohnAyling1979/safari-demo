@@ -1,7 +1,7 @@
 import './style.css';
 
 async function init() {
-  console.log('[Safari Demo] Options script loaded');
+  console.log('safari-demo:options: Options script loaded');
   const app = document.getElementById('app')!;
 
   const { demoCount = 0, theme = 'light' } =

@@ -4,7 +4,7 @@ export default defineContentScript({
   matches: ['*://*/*'],
   cssInjectionMode: 'ui',
   async main(ctx) {
-    console.log('[Safari Demo] Content script loaded on', window.location.href);
+    console.log('safari-demo:content: Content script loaded on', window.location.href);
 
     let sessionDisplay: HTMLParagraphElement | null = null;
     let sharedFileDisplay: HTMLParagraphElement | null = null;
@@ -13,21 +13,15 @@ export default defineContentScript({
       if (sessionDisplay) sessionDisplay.textContent = text;
     };
 
-    const updateSharedFileDisplay = (name: string | null, size: number) => {
+    const updateSharedFileDisplay = (pdfUrl: string | null) => {
       if (sharedFileDisplay) {
-        sharedFileDisplay.textContent = name
-          ? `${name} (${formatBytes(size)})`
-          : '—';
+        if (pdfUrl) {
+          sharedFileDisplay.innerHTML = `<a href="${escapeHtml(pdfUrl)}" target="_blank" rel="noopener">${escapeHtml(pdfUrl)}</a>`;
+        } else {
+          sharedFileDisplay.textContent = '—';
+        }
       }
     };
-
-    function formatBytes(bytes: number): string {
-      if (bytes === 0) return '0 B';
-      const k = 1024;
-      const sizes = ['B', 'KB', 'MB', 'GB'];
-      const i = Math.floor(Math.log(bytes) / Math.log(k));
-      return `${(bytes / Math.pow(k, i)).toFixed(1)} ${sizes[i]}`;
-    }
 
     browser.runtime.onMessage.addListener(
       (message: { type: string }, _sender, sendResponse) => {
@@ -72,7 +66,7 @@ export default defineContentScript({
         badge.innerHTML = `
           <span class="title">Safari Demo Extension</span>
           <span class="url">${escapeHtml(window.location.href)}</span>
-          <span class="shared-file-label">Shared file:</span>
+          <span class="shared-file-label">Uploaded PDF URL:</span>
         `;
         badge.append(sharedFileDisplay);
         badge.append(sessionDisplay);
@@ -100,13 +94,13 @@ export default defineContentScript({
         badge.append(pingBtn);
         container.append(badge);
 
-        // Fetch shared file on mount
+        // Fetch shared PDF URL on mount
         browser.runtime
           .sendMessage({ type: 'getSharedFile' })
-          .then((res: { name?: string | null; size?: number }) => {
-            updateSharedFileDisplay(res?.name ?? null, res?.size ?? 0);
+          .then((res: { pdfUrl?: string | null }) => {
+            updateSharedFileDisplay(res?.pdfUrl ?? null);
           })
-          .catch(() => updateSharedFileDisplay(null, 0));
+          .catch(() => updateSharedFileDisplay(null));
       },
     });
 
