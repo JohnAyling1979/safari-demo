@@ -35,6 +35,22 @@ h2 {
   color: #0066cc;
 }
 
+.value.shared-text {
+  max-height: 120px;
+  overflow-y: auto;
+  white-space: pre-wrap;
+}
+
+.shared-image {
+  max-width: 100%;
+  max-height: 160px;
+  width: auto;
+  height: auto;
+  display: block;
+  margin: 8px 0;
+  border-radius: 6px;
+}
+
 button {
   padding: 8px 16px;
   background: #0066cc;

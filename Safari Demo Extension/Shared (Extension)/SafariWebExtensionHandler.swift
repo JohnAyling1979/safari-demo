@@ -11,6 +11,8 @@ import os.log
 private let appGroupSuiteName = "group.com.powernotes.safari-demo-extension"
 private let lastSharedFileNameKey = "lastSharedFileName"
 private let lastSharedFileSizeKey = "lastSharedFileSize"
+private let lastSharedTextKey = "lastSharedText"
+private let lastSharedImagePathKey = "lastSharedImagePath"
 
 class SafariWebExtensionHandler: NSObject, NSExtensionRequestHandling {
 
@@ -39,12 +41,25 @@ class SafariWebExtensionHandler: NSObject, NSExtensionRequestHandling {
             let defaults = UserDefaults(suiteName: appGroupSuiteName)
             let name = defaults?.string(forKey: lastSharedFileNameKey)
             let size = defaults?.integer(forKey: lastSharedFileSizeKey) ?? 0
+            let text = defaults?.string(forKey: lastSharedTextKey)
+            let imagePath = defaults?.string(forKey: lastSharedImagePathKey)
             if let name = name {
                 responsePayload["name"] = name
                 responsePayload["size"] = size
             } else {
                 responsePayload["name"] = NSNull()
                 responsePayload["size"] = 0
+            }
+            if let text = text {
+                responsePayload["text"] = text
+            } else {
+                responsePayload["text"] = NSNull()
+            }
+            if let path = imagePath, FileManager.default.fileExists(atPath: path),
+               let data = try? Data(contentsOf: URL(fileURLWithPath: path)) {
+                responsePayload["imageDataBase64"] = data.base64EncodedString()
+            } else {
+                responsePayload["imageDataBase64"] = NSNull()
             }
         } else {
             responsePayload["echo"] = message ?? NSNull()

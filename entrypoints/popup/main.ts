@@ -29,17 +29,29 @@ async function init() {
 
   const sharedFileName = sharedFile?.name ?? null;
   const sharedFileSize = sharedFile?.size ?? 0;
+  const sharedText = sharedFile?.text ?? null;
+  const sharedImageBase64 = sharedFile?.imageDataBase64 ?? null;
   const sharedFileDisplay = sharedFileName
     ? `${escapeHtml(sharedFileName)} (${formatBytes(sharedFileSize)})`
     : '—';
+  const sharedTextDisplay =
+    sharedText != null
+      ? `<p class="label">Shared text:</p><p class="value shared-text" id="sharedText">${escapeHtml(sharedText)}</p>`
+      : '';
+  const sharedImageDisplay =
+    sharedImageBase64 != null
+      ? `<p class="label">Shared image:</p><img class="shared-image" id="sharedImage" src="data:image/jpeg;base64,${sharedImageBase64}" alt="Shared" />`
+      : '';
 
   app.innerHTML = `
     <div class="popup">
       <h1>Safari Demo</h1>
       <section>
-        <h2>Shared File</h2>
+        <h2>Shared File / Text / Image</h2>
         <p class="label">Last shared:</p>
         <p class="value" id="sharedFile">${sharedFileDisplay}</p>
+        ${sharedTextDisplay}
+        ${sharedImageDisplay}
         <div class="button-row">
           <button id="refreshSharedFile">Refresh</button>
         </div>
@@ -143,12 +155,25 @@ async function init() {
   document.getElementById('refreshSharedFile')?.addEventListener('click', async () => {
     const sharedFile = await browser.runtime
       .sendMessage({ type: 'getSharedFile' })
-      .catch(() => ({ name: null, size: 0 }));
+      .catch(() => ({ name: null, size: 0, text: null, imageDataBase64: null }));
     const el = document.getElementById('sharedFile');
     if (el) {
       el.textContent = sharedFile?.name
         ? `${sharedFile.name} (${formatBytes(sharedFile.size ?? 0)})`
         : '—';
+    }
+    const textEl = document.getElementById('sharedText');
+    if (textEl) {
+      textEl.textContent = sharedFile?.text ?? '—';
+    }
+    const imgEl = document.getElementById('sharedImage') as HTMLImageElement | null;
+    if (imgEl) {
+      if (sharedFile?.imageDataBase64) {
+        imgEl.src = `data:image/jpeg;base64,${sharedFile.imageDataBase64}`;
+        imgEl.style.display = '';
+      } else {
+        imgEl.style.display = 'none';
+      }
     }
   });
 }
