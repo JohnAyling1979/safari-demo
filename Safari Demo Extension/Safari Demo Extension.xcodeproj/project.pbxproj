@@ -678,7 +678,7 @@
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = SAT5X38669;
+				DEVELOPMENT_TEAM = C858DUPW2F;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "iOS (Extension)/Info.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = "Safari Demo Extension Extension";
@@ -694,7 +694,7 @@
 					"-framework",
 					SafariServices,
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = "com.yourCompany.Safari-Demo-Extension.Extension";
+				PRODUCT_BUNDLE_IDENTIFIER = "com.powernotes.safari-demo-extension.Extension";
 				PRODUCT_NAME = "Safari Demo Extension Extension";
 				SDKROOT = iphoneos;
 				SKIP_INSTALL = YES;
@@ -709,7 +709,7 @@
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = SAT5X38669;
+				DEVELOPMENT_TEAM = C858DUPW2F;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "iOS (Extension)/Info.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = "Safari Demo Extension Extension";
@@ -725,7 +725,7 @@
 					"-framework",
 					SafariServices,
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = "com.yourCompany.Safari-Demo-Extension.Extension";
+				PRODUCT_BUNDLE_IDENTIFIER = "com.powernotes.safari-demo-extension.Extension";
 				PRODUCT_NAME = "Safari Demo Extension Extension";
 				SDKROOT = iphoneos;
 				SKIP_INSTALL = YES;
@@ -744,7 +744,7 @@
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = SAT5X38669;
+				DEVELOPMENT_TEAM = C858DUPW2F;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "iOS (App)/Info.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = "Safari Demo Extension";
@@ -765,7 +765,7 @@
 					"-framework",
 					WebKit,
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = "com.yourCompany.Safari-Demo-Extension";
+				PRODUCT_BUNDLE_IDENTIFIER = "com.powernotes.safari-demo-extension";
 				PRODUCT_NAME = "Safari Demo Extension";
 				PROVISIONING_PROFILE_SPECIFIER = "";
 				SDKROOT = iphoneos;
@@ -783,7 +783,7 @@
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = SAT5X38669;
+				DEVELOPMENT_TEAM = C858DUPW2F;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "iOS (App)/Info.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = "Safari Demo Extension";
@@ -804,7 +804,7 @@
 					"-framework",
 					WebKit,
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = "com.yourCompany.Safari-Demo-Extension";
+				PRODUCT_BUNDLE_IDENTIFIER = "com.powernotes.safari-demo-extension";
 				PRODUCT_NAME = "Safari Demo Extension";
 				PROVISIONING_PROFILE_SPECIFIER = "";
 				SDKROOT = iphoneos;
@@ -822,7 +822,7 @@
 				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "-";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = SAT5X38669;
+				DEVELOPMENT_TEAM = C858DUPW2F;
 				ENABLE_HARDENED_RUNTIME = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "macOS (Extension)/Info.plist";
@@ -839,7 +839,7 @@
 					"-framework",
 					SafariServices,
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = "com.yourCompany.Safari-Demo-Extension.Extension";
+				PRODUCT_BUNDLE_IDENTIFIER = "com.powernotes.safari-demo-extension.Extension";
 				PRODUCT_NAME = "Safari Demo Extension Extension";
 				SDKROOT = macosx;
 				SKIP_INSTALL = YES;
@@ -855,7 +855,7 @@
 				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "-";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = SAT5X38669;
+				DEVELOPMENT_TEAM = C858DUPW2F;
 				ENABLE_HARDENED_RUNTIME = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "macOS (Extension)/Info.plist";
@@ -872,7 +872,7 @@
 					"-framework",
 					SafariServices,
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = "com.yourCompany.Safari-Demo-Extension.Extension";
+				PRODUCT_BUNDLE_IDENTIFIER = "com.powernotes.safari-demo-extension.Extension";
 				PRODUCT_NAME = "Safari Demo Extension Extension";
 				SDKROOT = macosx;
 				SKIP_INSTALL = YES;
@@ -890,7 +890,7 @@
 				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "-";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = SAT5X38669;
+				DEVELOPMENT_TEAM = C858DUPW2F;
 				ENABLE_HARDENED_RUNTIME = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "macOS (App)/Info.plist";
@@ -909,7 +909,7 @@
 					"-framework",
 					WebKit,
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = "com.yourCompany.Safari-Demo-Extension";
+				PRODUCT_BUNDLE_IDENTIFIER = "com.powernotes.safari-demo-extension";
 				PRODUCT_NAME = "Safari Demo Extension";
 				SDKROOT = macosx;
 				SWIFT_EMIT_LOC_STRINGS = YES;
@@ -926,7 +926,7 @@
 				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "-";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = SAT5X38669;
+				DEVELOPMENT_TEAM = C858DUPW2F;
 				ENABLE_HARDENED_RUNTIME = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "macOS (App)/Info.plist";
@@ -945,7 +945,7 @@
 					"-framework",
 					WebKit,
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = "com.yourCompany.Safari-Demo-Extension";
+				PRODUCT_BUNDLE_IDENTIFIER = "com.powernotes.safari-demo-extension";
 				PRODUCT_NAME = "Safari Demo Extension";
 				SDKROOT = macosx;
 				SWIFT_EMIT_LOC_STRINGS = YES;
