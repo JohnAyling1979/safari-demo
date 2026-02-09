@@ -26,6 +26,20 @@
   word-break: break-all;
 }
 
+.demo-badge .shared-file-label {
+  display: block;
+  font-size: 11px;
+  opacity: 0.9;
+  margin-top: 6px;
+}
+
+.demo-badge .shared-file-info {
+  margin: 2px 0 6px;
+  font-size: 11px;
+  opacity: 0.95;
+  word-break: break-all;
+}
+
 .demo-badge .session-info {
   margin: 8px 0 8px;
   font-size: 11px;

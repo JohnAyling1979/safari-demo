@@ -17,18 +17,33 @@ async function init() {
       }
     : { title: 'N/A', url: 'N/A' };
 
-  // Get count and session info from background
-  const [{ count }, { sessionId, loadedAt }] = await Promise.all([
+  // Get count, session info, and shared file from background
+  const [{ count }, { sessionId, loadedAt }, sharedFile] = await Promise.all([
     browser.runtime.sendMessage({ type: 'getCount' }),
     browser.runtime.sendMessage({ type: 'getSessionInfo' }),
+    browser.runtime.sendMessage({ type: 'getSharedFile' }).catch(() => ({ name: null, size: 0 })),
   ]);
 
   const truncatedSessionId =
     sessionId != null ? `${String(sessionId).slice(0, 8)}…` : '—';
 
+  const sharedFileName = sharedFile?.name ?? null;
+  const sharedFileSize = sharedFile?.size ?? 0;
+  const sharedFileDisplay = sharedFileName
+    ? `${escapeHtml(sharedFileName)} (${formatBytes(sharedFileSize)})`
+    : '—';
+
   app.innerHTML = `
     <div class="popup">
       <h1>Safari Demo</h1>
+      <section>
+        <h2>Shared File</h2>
+        <p class="label">Last shared:</p>
+        <p class="value" id="sharedFile">${sharedFileDisplay}</p>
+        <div class="button-row">
+          <button id="refreshSharedFile">Refresh</button>
+        </div>
+      </section>
       <section>
         <h2>Current Tab</h2>
         <p class="label">Title:</p>
@@ -124,6 +139,26 @@ async function init() {
     e.preventDefault();
     browser.runtime.openOptionsPage();
   });
+
+  document.getElementById('refreshSharedFile')?.addEventListener('click', async () => {
+    const sharedFile = await browser.runtime
+      .sendMessage({ type: 'getSharedFile' })
+      .catch(() => ({ name: null, size: 0 }));
+    const el = document.getElementById('sharedFile');
+    if (el) {
+      el.textContent = sharedFile?.name
+        ? `${sharedFile.name} (${formatBytes(sharedFile.size ?? 0)})`
+        : '—';
+    }
+  });
+}
+
+function formatBytes(bytes: number): string {
+  if (bytes === 0) return '0 B';
+  const k = 1024;
+  const sizes = ['B', 'KB', 'MB', 'GB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return `${(bytes / Math.pow(k, i)).toFixed(1)} ${sizes[i]}`;
 }
 
 function escapeHtml(text: string): string {

@@ -7,10 +7,27 @@ export default defineContentScript({
     console.log('[Safari Demo] Content script loaded on', window.location.href);
 
     let sessionDisplay: HTMLParagraphElement | null = null;
+    let sharedFileDisplay: HTMLParagraphElement | null = null;
 
     const updateSessionDisplay = (text: string) => {
       if (sessionDisplay) sessionDisplay.textContent = text;
     };
+
+    const updateSharedFileDisplay = (name: string | null, size: number) => {
+      if (sharedFileDisplay) {
+        sharedFileDisplay.textContent = name
+          ? `${name} (${formatBytes(size)})`
+          : '—';
+      }
+    };
+
+    function formatBytes(bytes: number): string {
+      if (bytes === 0) return '0 B';
+      const k = 1024;
+      const sizes = ['B', 'KB', 'MB', 'GB'];
+      const i = Math.floor(Math.log(bytes) / Math.log(k));
+      return `${(bytes / Math.pow(k, i)).toFixed(1)} ${sizes[i]}`;
+    }
 
     browser.runtime.onMessage.addListener(
       (message: { type: string }, _sender, sendResponse) => {
@@ -49,10 +66,15 @@ export default defineContentScript({
         sessionDisplay = document.createElement('p');
         sessionDisplay.className = 'session-info';
         sessionDisplay.textContent = '—';
+        sharedFileDisplay = document.createElement('p');
+        sharedFileDisplay.className = 'shared-file-info';
+        sharedFileDisplay.textContent = '—';
         badge.innerHTML = `
           <span class="title">Safari Demo Extension</span>
           <span class="url">${escapeHtml(window.location.href)}</span>
+          <span class="shared-file-label">Shared file:</span>
         `;
+        badge.append(sharedFileDisplay);
         badge.append(sessionDisplay);
         const pingBtn = document.createElement('button');
         pingBtn.className = 'demo-ping-btn';
@@ -77,6 +99,14 @@ export default defineContentScript({
         });
         badge.append(pingBtn);
         container.append(badge);
+
+        // Fetch shared file on mount
+        browser.runtime
+          .sendMessage({ type: 'getSharedFile' })
+          .then((res: { name?: string | null; size?: number }) => {
+            updateSharedFileDisplay(res?.name ?? null, res?.size ?? 0);
+          })
+          .catch(() => updateSharedFileDisplay(null, 0));
       },
     });
 

@@ -81,6 +81,26 @@ export default defineBackground({
           return false;
         }
 
+        if (message.type === 'getSharedFile') {
+          const appName = 'com.powernotes.safari-demo-extension';
+          browser.runtime
+            .sendNativeMessage(appName, { type: 'getSharedFile' })
+            .then((response: { name?: string; size?: number }) => {
+              sendResponse({
+                name: response?.name ?? null,
+                size: response?.size ?? 0,
+              });
+            })
+            .catch((err) => {
+              sendResponse({
+                name: null,
+                size: 0,
+                error: String(err),
+              });
+            });
+          return true;
+        }
+
         sendResponse({ error: 'Unknown message type' });
         return false;
       }

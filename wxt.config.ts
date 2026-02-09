@@ -4,7 +4,7 @@ export default defineConfig({
   manifest: {
     name: 'Safari Demo Extension',
     description: 'Demo extension showcasing popup, options, background, content script, and new tab',
-    permissions: ['storage', 'activeTab', 'tabs'],
+    permissions: ['storage', 'activeTab', 'tabs', 'nativeMessaging'],
     host_permissions: ['*://*/*'],
     browser_action: {
       default_icon: {

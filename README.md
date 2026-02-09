@@ -40,6 +40,6 @@ pnpm zip:safari
 Then:
 
 1. Build: `pnpm build:safari`
-2. Convert to Xcode project: `xcrun safari-web-extension-converter .output/safari-mv2/`
-3. Open the generated Xcode project, select **My Mac** as destination, and run (⌘R)
+2. Copy built extension into Xcode project: `cp -R .output/safari-mv2/* "Safari Demo Extension/Shared (Extension)/Resources/"`
+3. Open the Xcode project (`Safari Demo Extension`), select **My Mac** as destination, and run (⌘R)
 4. With the app running, open Safari → Settings → Extensions and enable the extension
