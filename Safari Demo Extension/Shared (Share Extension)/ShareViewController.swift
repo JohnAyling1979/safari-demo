@@ -32,6 +32,7 @@ class ShareViewController: PlatformViewController {
         }
 
         let fileURLType = UTType.fileURL.identifier
+        let urlType = UTType.url.identifier
         let group = DispatchGroup()
         var foundProvider = false
 
@@ -45,6 +46,17 @@ class ShareViewController: PlatformViewController {
                         defer { group.leave() }
                         if let url = item as? URL {
                             self?.saveFileInfo(url: url)
+                        }
+                    }
+                    break
+                }
+                if provider.hasItemConformingToTypeIdentifier(urlType) {
+                    foundProvider = true
+                    group.enter()
+                    provider.loadItem(forTypeIdentifier: urlType, options: nil) { [weak self] item, _ in
+                        defer { group.leave() }
+                        if let url = item as? URL {
+                            self?.saveURLInfo(url: url)
                         }
                     }
                     break
@@ -70,6 +82,12 @@ class ShareViewController: PlatformViewController {
         }
         UserDefaults(suiteName: appGroupSuiteName)?.set(name, forKey: lastSharedFileNameKey)
         UserDefaults(suiteName: appGroupSuiteName)?.set(size, forKey: lastSharedFileSizeKey)
+        UserDefaults(suiteName: appGroupSuiteName)?.synchronize()
+    }
+
+    private func saveURLInfo(url: URL) {
+        UserDefaults(suiteName: appGroupSuiteName)?.set(url.absoluteString, forKey: lastSharedFileNameKey)
+        UserDefaults(suiteName: appGroupSuiteName)?.set(0, forKey: lastSharedFileSizeKey)
         UserDefaults(suiteName: appGroupSuiteName)?.synchronize()
     }
 
