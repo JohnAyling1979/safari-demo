@@ -4,7 +4,6 @@
 //
 
 import UniformTypeIdentifiers
-import os.log
 
 #if os(iOS)
 import UIKit
@@ -43,6 +42,7 @@ class ShareViewController: PlatformViewController {
 
         let fileURLType = UTType.fileURL.identifier
         let urlType = UTType.url.identifier
+        let pdfType = UTType.pdf.identifier
         let group = DispatchGroup()
         var foundProvider = false
 
@@ -57,7 +57,22 @@ class ShareViewController: PlatformViewController {
                         if let url = item as? URL {
                             self?.handleFileURL(url)
                         } else if let data = item as? Data {
+                            self?.handleFileURLItemAsData(data)
+                        } else {
+                            self?.finishWithFailure("Not a PDF")
+                        }
+                    }
+                    break
+                }
+                if provider.hasItemConformingToTypeIdentifier(pdfType) {
+                    foundProvider = true
+                    group.enter()
+                    provider.loadItem(forTypeIdentifier: pdfType, options: nil) { [weak self] item, _ in
+                        defer { group.leave() }
+                        if let data = item as? Data {
                             self?.uploadPDF(data)
+                        } else if let url = item as? URL {
+                            self?.handleFileURL(url)
                         } else {
                             self?.finishWithFailure("Not a PDF")
                         }
@@ -69,11 +84,24 @@ class ShareViewController: PlatformViewController {
                     group.enter()
                     provider.loadItem(forTypeIdentifier: urlType, options: nil) { [weak self] item, _ in
                         defer { group.leave() }
-                        if let url = item as? URL, !url.isFileURL {
-                            self?.handleWebURL(url)
-                        } else {
-                            self?.finishWithFailure("Not a PDF")
+                        // Resolve URL: direct cast, NSURL, or macOS may give URL as raw Data (UTF-8 bytes)
+                        var url: URL?
+                        if let u = item as? URL {
+                            url = u
+                        } else if let nu = item as? NSURL {
+                            url = nu as URL
+                        } else if let data = item as? Data, let str = String(data: data, encoding: .utf8), let u = URL(string: str) {
+                            url = u
                         }
+                        if let url = url {
+                            if url.isFileURL {
+                                self?.handleFileURL(url)
+                            } else {
+                                self?.handleWebURL(url)
+                            }
+                            return
+                        }
+                        self?.finishWithFailure("Not a PDF")
                     }
                     break
                 }
@@ -81,19 +109,46 @@ class ShareViewController: PlatformViewController {
             if foundProvider { break }
         }
 
-        if foundProvider {
-            // Completion happens in finishWithSuccess / finishWithFailure when upload completes
-            // (or from handleFileURL/handleWebURL when validation fails)
-        } else {
+        if !foundProvider {
             showStatus("Unsupported type")
             completeRequest(afterDelay: 0.8)
         }
     }
 
+    /// Handle Data from fileURL loadItem: macOS may give path as UTF-8 bytes, file URL string, or file contents.
+    private func handleFileURLItemAsData(_ data: Data) {
+        if data.prefix(4).elementsEqual("%PDF".utf8) {
+            uploadPDF(data)
+            return
+        }
+        guard let str = String(data: data, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines),
+              !str.isEmpty else {
+            finishWithFailure("Not a PDF")
+            return
+        }
+        let url: URL?
+        if str.hasPrefix("/") && !str.contains("://") {
+            url = URL(fileURLWithPath: str)
+        } else if let u = URL(string: str), u.isFileURL {
+            url = u
+        } else {
+            finishWithFailure("Not a PDF")
+            return
+        }
+        guard let url = url else {
+            finishWithFailure("Not a PDF")
+            return
+        }
+        handleFileURL(url)
+    }
+
     private func isPDFFile(_ url: URL) -> Bool {
-        url.pathExtension.lowercased() == "pdf" ||
-        (try? url.resourceValues(forKeys: [.typeIdentifierKey]).typeIdentifier)
-            .map { UTType($0)?.conforms(to: .pdf) ?? false } ?? false
+        if url.pathExtension.lowercased() == "pdf" { return true }
+        if (try? url.resourceValues(forKeys: [.typeIdentifierKey]).typeIdentifier)
+            .map({ UTType($0)?.conforms(to: .pdf) ?? false }) ?? false { return true }
+        // macOS share extension may give temp files without .pdf extension or typeIdentifier; check magic bytes
+        guard url.isFileURL, let data = try? Data(contentsOf: url, options: .mappedIfSafe).prefix(5) else { return false }
+        return data.starts(with: "%PDF".utf8)
     }
 
     private func handleFileURL(_ url: URL) {
@@ -132,9 +187,7 @@ class ShareViewController: PlatformViewController {
     }
 
     private func uploadPDF(_ data: Data) {
-        os_log(.default, "safari-demo:ShareViewController: upload starting, payload size %{public}zu bytes", data.count)
         guard let url = URL(string: uploadURLString) else {
-            os_log(.default, "safari-demo:ShareViewController: upload failed - invalid upload URL")
             finishWithFailure("Upload failed")
             return
         }
@@ -152,19 +205,12 @@ class ShareViewController: PlatformViewController {
 
         let task = URLSession.shared.dataTask(with: request) { [weak self] responseData, response, error in
             guard let self = self else { return }
-            if let error = error {
-                os_log(.default, "safari-demo:ShareViewController: upload network error %{public}@", String(describing: error))
+            if let _ = error {
                 DispatchQueue.main.async { self.finishWithFailure("Upload failed") }
                 return
             }
-            guard let http = response as? HTTPURLResponse else {
-                os_log(.default, "safari-demo:ShareViewController: upload failed - no HTTP response")
-                DispatchQueue.main.async { self.finishWithFailure("Upload failed") }
-                return
-            }
-            os_log(.default, "safari-demo:ShareViewController: upload response status %{public}ld, body length %{public}zu", http.statusCode, responseData?.count ?? 0)
-            guard (200...299).contains(http.statusCode) else {
-                os_log(.default, "safari-demo:ShareViewController: upload failed - status %{public}ld", http.statusCode)
+            guard let http = response as? HTTPURLResponse,
+                  (200...299).contains(http.statusCode) else {
                 DispatchQueue.main.async { self.finishWithFailure("Upload failed") }
                 return
             }
@@ -172,15 +218,12 @@ class ShareViewController: PlatformViewController {
                   let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
                   let sha256 = json["sha256"] as? String,
                   !sha256.isEmpty else {
-                os_log(.default, "safari-demo:ShareViewController: upload failed - invalid or missing JSON sha256 (raw: %{public}@)", String(data: responseData ?? Data(), encoding: .utf8) ?? "")
                 DispatchQueue.main.async { self.finishWithFailure("Upload failed") }
                 return
             }
-            os_log(.default, "safari-demo:ShareViewController: upload success sha256 %{public}@", sha256)
             let viewURL = "\(pdfViewURLBase)/\(sha256)"
             UserDefaults(suiteName: appGroupSuiteName)?.set(viewURL, forKey: lastSharedPdfUrlKey)
             UserDefaults(suiteName: appGroupSuiteName)?.synchronize()
-            os_log(.default, "safari-demo:ShareViewController: saved pdfUrl to app group: %{public}@", viewURL)
             DispatchQueue.main.async { self.finishWithSuccess() }
         }
         task.resume()
