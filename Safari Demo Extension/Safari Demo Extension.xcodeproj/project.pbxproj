@@ -54,7 +54,7 @@
 		2DBF2E022F3A7A44009C50A7 /* ShareViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2DBF2E012F3A7A44009C50A7 /* ShareViewController.swift */; };
 		2DBF2E032F3A7A44009C50A7 /* ShareViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2DBF2E012F3A7A44009C50A7 /* ShareViewController.swift */; };
 		2DBF2E132F3A7A44009C50A7 /* Safari Demo Extension Share Extension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 2DBF2E062F3A7A44009C50A7 /* Safari Demo Extension Share Extension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
-		2DBF2E142F3A7A44009C50A7 /* Safari Demo Extension Share Extension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 2DBF2E072F3A7A44009C50A7 /* Safari Demo Extension Share Extension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		2DF952442F3B8EFA00E4B2F7 /* Safari Demo Extension Share Extension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 2DBF2E072F3A7A44009C50A7 /* Safari Demo Extension Share Extension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -79,7 +79,14 @@
 			remoteGlobalIDString = 2DBF2E0B2F3A7A44009C50A7;
 			remoteInfo = "Safari Demo Extension Share Extension (iOS)";
 		};
-		2DBF2E182F3A7A44009C50A7 /* PBXContainerItemProxy */ = {
+		2DF952422F3B8EEB00E4B2F7 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 2DBF282D2F3A7A42009C50A7 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 2DBF2E0C2F3A7A44009C50A7;
+			remoteInfo = "Safari Demo Extension Share Extension (macOS)";
+		};
+		2DF952452F3B8EFB00E4B2F7 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = 2DBF282D2F3A7A42009C50A7 /* Project object */;
 			proxyType = 1;
@@ -108,7 +115,7 @@
 			dstSubfolderSpec = 13;
 			files = (
 				2DBF28692F3A7A43009C50A7 /* Safari Demo Extension Extension.appex in Embed Foundation Extensions */,
-				2DBF2E142F3A7A44009C50A7 /* Safari Demo Extension Share Extension.appex in Embed Foundation Extensions */,
+				2DF952442F3B8EFA00E4B2F7 /* Safari Demo Extension Share Extension.appex in Embed Foundation Extensions */,
 			);
 			name = "Embed Foundation Extensions";
 			runOnlyForDeploymentPostprocessing = 0;
@@ -213,6 +220,7 @@
 				2DBF286C2F3A7A43009C50A7 /* macOS (Extension) */,
 				2DBF2E092F3A7A44009C50A7 /* iOS (Share Extension) */,
 				2DBF2E0A2F3A7A44009C50A7 /* macOS (Share Extension) */,
+				2DF952412F3B8EEB00E4B2F7 /* Frameworks */,
 				2DBF28412F3A7A43009C50A7 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -341,6 +349,13 @@
 			path = "macOS (Share Extension)";
 			sourceTree = "<group>";
 		};
+		2DF952412F3B8EEB00E4B2F7 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
@@ -379,7 +394,8 @@
 			);
 			dependencies = (
 				2DBF286B2F3A7A43009C50A7 /* PBXTargetDependency */,
-				2DBF2E1A2F3A7A44009C50A7 /* PBXTargetDependency */,
+				2DF952432F3B8EEB00E4B2F7 /* PBXTargetDependency */,
+				2DF952462F3B8EFB00E4B2F7 /* PBXTargetDependency */,
 			);
 			name = "Safari Demo Extension (macOS)";
 			packageProductDependencies = (
@@ -668,10 +684,15 @@
 			target = 2DBF2E0B2F3A7A44009C50A7 /* Safari Demo Extension Share Extension (iOS) */;
 			targetProxy = 2DBF2E172F3A7A44009C50A7 /* PBXContainerItemProxy */;
 		};
-		2DBF2E1A2F3A7A44009C50A7 /* PBXTargetDependency */ = {
+		2DF952432F3B8EEB00E4B2F7 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			target = 2DBF2E0C2F3A7A44009C50A7 /* Safari Demo Extension Share Extension (macOS) */;
-			targetProxy = 2DBF2E182F3A7A44009C50A7 /* PBXContainerItemProxy */;
+			targetProxy = 2DF952422F3B8EEB00E4B2F7 /* PBXContainerItemProxy */;
+		};
+		2DF952462F3B8EFB00E4B2F7 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 2DBF2E0C2F3A7A44009C50A7 /* Safari Demo Extension Share Extension (macOS) */;
+			targetProxy = 2DF952452F3B8EFB00E4B2F7 /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -1207,6 +1228,17 @@
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = C858DUPW2F;
+				ENABLE_APP_SANDBOX = YES;
+				ENABLE_INCOMING_NETWORK_CONNECTIONS = NO;
+				ENABLE_OUTGOING_NETWORK_CONNECTIONS = YES;
+				ENABLE_RESOURCE_ACCESS_AUDIO_INPUT = NO;
+				ENABLE_RESOURCE_ACCESS_BLUETOOTH = NO;
+				ENABLE_RESOURCE_ACCESS_CALENDARS = NO;
+				ENABLE_RESOURCE_ACCESS_CAMERA = NO;
+				ENABLE_RESOURCE_ACCESS_CONTACTS = NO;
+				ENABLE_RESOURCE_ACCESS_LOCATION = NO;
+				ENABLE_RESOURCE_ACCESS_PRINTING = NO;
+				ENABLE_RESOURCE_ACCESS_USB = NO;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "macOS (Share Extension)/Info.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = "Safari Demo Share";
@@ -1234,6 +1266,17 @@
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = C858DUPW2F;
+				ENABLE_APP_SANDBOX = YES;
+				ENABLE_INCOMING_NETWORK_CONNECTIONS = NO;
+				ENABLE_OUTGOING_NETWORK_CONNECTIONS = YES;
+				ENABLE_RESOURCE_ACCESS_AUDIO_INPUT = NO;
+				ENABLE_RESOURCE_ACCESS_BLUETOOTH = NO;
+				ENABLE_RESOURCE_ACCESS_CALENDARS = NO;
+				ENABLE_RESOURCE_ACCESS_CAMERA = NO;
+				ENABLE_RESOURCE_ACCESS_CONTACTS = NO;
+				ENABLE_RESOURCE_ACCESS_LOCATION = NO;
+				ENABLE_RESOURCE_ACCESS_PRINTING = NO;
+				ENABLE_RESOURCE_ACCESS_USB = NO;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "macOS (Share Extension)/Info.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = "Safari Demo Share";
