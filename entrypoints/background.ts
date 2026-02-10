@@ -99,6 +99,32 @@ export default defineBackground({
           return true;
         }
 
+        if (message.type === 'clearSharedFile') {
+          const appName = 'com.powernotes.safari-demo-extension';
+          browser.runtime
+            .sendNativeMessage(appName, { type: 'clearSharedFile' })
+            .then((response: { ok?: boolean }) => {
+              const ok = response?.ok ?? true;
+              sendResponse({ ok });
+              if (ok) {
+                // Notify all tabs so content overlay updates
+                browser.tabs.query({}).then((tabs) => {
+                  for (const tab of tabs) {
+                    if (tab.id != null) {
+                      browser.tabs.sendMessage(tab.id, { type: 'sharedFileUpdated' }).catch(() => {
+                        // Tab may not have content script; ignore
+                      });
+                    }
+                  }
+                });
+              }
+            })
+            .catch((err) => {
+              sendResponse({ ok: false, error: String(err) });
+            });
+          return true;
+        }
+
         sendResponse({ error: 'Unknown message type' });
         return false;
       }

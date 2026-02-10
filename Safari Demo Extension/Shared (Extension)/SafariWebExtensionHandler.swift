@@ -43,6 +43,11 @@ class SafariWebExtensionHandler: NSObject, NSExtensionRequestHandling {
                 responsePayload["pdfUrl"] = NSNull()
                 os_log(.default, "safari-demo:SafariWebExtensionHandler: getSharedFile: no pdfUrl in app group (suite: %@)", appGroupSuiteName)
             }
+        } else if let msg = message as? [String: Any], msg["type"] as? String == "clearSharedFile" {
+            let defaults = UserDefaults(suiteName: appGroupSuiteName)
+            defaults?.removeObject(forKey: lastSharedPdfUrlKey)
+            responsePayload["ok"] = true
+            os_log(.default, "safari-demo:SafariWebExtensionHandler: clearSharedFile: removed pdfUrl from app group")
         } else {
             responsePayload["echo"] = message ?? NSNull()
         }

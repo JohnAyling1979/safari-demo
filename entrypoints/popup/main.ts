@@ -42,6 +42,7 @@ async function init() {
         ${sharedPdfDisplay}
         <div class="button-row">
           <button id="refreshSharedFile">Refresh</button>
+          <button id="clearSharedFile">Clear URL</button>
         </div>
       </section>
       <section>
@@ -140,18 +141,29 @@ async function init() {
     browser.runtime.openOptionsPage();
   });
 
+  const updateSharedPdfDisplay = (url: string | null) => {
+    const el = document.getElementById('sharedPdfLink');
+    if (!el) return;
+    if (url) {
+      el.outerHTML = `<a class="value url" id="sharedPdfLink" href="${escapeHtml(url)}" target="_blank" rel="noopener">${escapeHtml(url)}</a>`;
+    } else {
+      el.outerHTML = '<p class="value" id="sharedPdfLink">—</p>';
+    }
+  };
+
   document.getElementById('refreshSharedFile')?.addEventListener('click', async () => {
     const sharedFile = await browser.runtime
       .sendMessage({ type: 'getSharedFile' })
       .catch(() => ({ pdfUrl: null }));
-    const el = document.getElementById('sharedPdfLink');
-    if (el) {
-      const url = sharedFile?.pdfUrl ?? null;
-      if (url) {
-        el.outerHTML = `<a class="value url" id="sharedPdfLink" href="${escapeHtml(url)}" target="_blank" rel="noopener">${escapeHtml(url)}</a>`;
-      } else {
-        el.outerHTML = '<p class="value" id="sharedPdfLink">—</p>';
-      }
+    updateSharedPdfDisplay(sharedFile?.pdfUrl ?? null);
+  });
+
+  document.getElementById('clearSharedFile')?.addEventListener('click', async () => {
+    const res = await browser.runtime
+      .sendMessage({ type: 'clearSharedFile' })
+      .catch(() => ({ ok: false }));
+    if (res?.ok !== false) {
+      updateSharedPdfDisplay(null);
     }
   });
 }
