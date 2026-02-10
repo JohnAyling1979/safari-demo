@@ -85,3 +85,47 @@ Popup                    Background                       Native
 | User clicks “Clear URL”      | Native clears app group | Popup shows "—"                             |
 
 **Shared storage:** App Group `UserDefaults` (suite: `group.com.powernotes.safari-demo-extension`), key `lastSharedPdfUrl`. Written by Share Extension; read/cleared by SafariWebExtensionHandler on behalf of the Web Extension.
+
+---
+
+## App Group and native messaging (macOS vs iOS)
+
+We **do** use App Groups on macOS the same way as on iOS: the Share Extension writes the view URL to `UserDefaults(suiteName: appGroupSuiteName)`, and the native handler reads it. All three targets (main app, Safari Extension, Share Extension) have the app group entitlement.
+
+The Web Extension side (popup/background) is **JavaScript** and has no API to read `UserDefaults` or the app group container. The only way to get the URL from the app group into the popup is for **native code** to read it and return it. So we use **native messaging**: the background script calls `sendNativeMessage`, which invokes the native handler (`SafariWebExtensionHandler`); the handler reads `UserDefaults(suiteName: appGroupSuiteName)` and returns `{ pdfUrl }`. There is no “read app group directly from the Safari extension” from JS—only the native handler can read the app group.
+
+On **iOS**, that flow does not trigger a permission prompt. On **macOS**, when the native message is handled (whether in the extension process or the containing app), the system can show “Safari Demo Extension would like to access data from other apps,” so the prompt is from **invoking native messaging / app group access**, not from avoiding App Groups. The popup calls `getSharedFile` when it opens (so the Shared PDF section shows the URL or “—” immediately); on macOS, opening the popup can therefore trigger the permission prompt.
+
+### Where the macOS prompt comes from (diagram)
+
+Same architecture on both platforms; the only difference is whether the system shows a permission prompt.
+
+```
+                    ┌─────────────────────────────────────────────────────────┐
+                    │  App Group (UserDefaults)                                 │
+                    │  suite: group.com.powernotes.safari-demo-extension        │
+                    │  key: lastSharedPdfUrl                                    │
+                    └────────────▲──────────────────────────▲──────────────────┘
+                                 │ write                    │ read
+                    Share Extension                          Native handler
+                    (after upload)                           (SafariWebExtensionHandler)
+                                                             │
+                                                             │ return pdfUrl
+                                                             │
+  Popup/Background (JS)  ──── sendNativeMessage ────────────►│
+       │                         ▲                           │
+       │                         │                           │
+       │                    ⚠️ PROMPT ON macOS               │
+       │                    ("access data from other apps")   │
+       │                    Not from App Group read —        │
+       │                    from this JS → native bridge.    │
+       │                                                      │
+       │  ◄─── response { pdfUrl } ───────────────────────────┘
+```
+
+| Platform | App Group read | JS → native (sendNativeMessage) |
+|----------|----------------|---------------------------------|
+| **iOS**  | No prompt      | No prompt                       |
+| **macOS**| No prompt      | **Prompt shown here**           |
+
+So: the prompt is triggered by the **JS → native bridge** when the extension calls `sendNativeMessage`, not by reading the App Group itself. Both platforms use the same App Group; only macOS surfaces a permission dialog at the bridge.
