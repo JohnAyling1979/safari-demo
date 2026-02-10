@@ -21,6 +21,12 @@ private let pdfViewURLBase = "http://localhost:5001/view"
 
 class ShareViewController: PlatformViewController {
 
+    #if os(iOS)
+    private var statusLabel: UILabel?
+    #elseif os(macOS)
+    private var statusLabel: NSTextField?
+    #endif
+
     override func viewDidLoad() {
         super.viewDidLoad()
         showStatus("Saving…")
@@ -182,7 +188,7 @@ class ShareViewController: PlatformViewController {
 
     private func finishWithSuccess() {
         showStatus("Saved")
-        completeRequest(afterDelay: 0.6)
+        completeRequest(afterDelay: 1.2)
     }
 
     private func finishWithFailure(_ message: String) {
@@ -194,10 +200,15 @@ class ShareViewController: PlatformViewController {
 
     private func showStatus(_ message: String) {
         #if os(iOS)
+        if let existing = statusLabel {
+            existing.text = message
+            return
+        }
         let label = UILabel()
         label.text = message
         label.textAlignment = .center
         label.translatesAutoresizingMaskIntoConstraints = false
+        statusLabel = label
         view.backgroundColor = .systemBackground
         view.addSubview(label)
         NSLayoutConstraint.activate([
@@ -205,9 +216,14 @@ class ShareViewController: PlatformViewController {
             label.centerYAnchor.constraint(equalTo: view.centerYAnchor),
         ])
         #elseif os(macOS)
+        if let existing = statusLabel {
+            existing.stringValue = message
+            return
+        }
         let label = NSTextField(labelWithString: message)
         label.alignment = .center
         label.translatesAutoresizingMaskIntoConstraints = false
+        statusLabel = label
         view.addSubview(label)
         NSLayoutConstraint.activate([
             label.centerXAnchor.constraint(equalTo: view.centerXAnchor),
