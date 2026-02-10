@@ -4,9 +4,11 @@ When a PDF is shared and uploaded, the Share Extension and Web Extension run in 
 
 **Where the PDF URL is shown:** Only in the **popup** (Shared PDF section). The content overlay does **not** display the PDF URL.
 
+**Share Extension:** Handles **local PDFs only** (file URL and PDF type from the system share sheet). It does **not** handle web URLs or fetch PDFs from the network.
+
 ---
 
-## 1. PDF upload (Share Extension only)
+## 1. PDF upload (Share Extension – local PDFs only)
 
 ```
 ┌─────────────────┐     POST /upload      ┌──────────────┐
@@ -32,11 +34,38 @@ The Web Extension (background, popup) is **not** notified when the upload succee
 
 ---
 
-## 2. How the Web Extension gets the PDF URL
+## 2. PDF upload (Popup – online PDFs from cache)
+
+When the current tab is an online PDF, the user can click **Upload current PDF** in the popup. The extension uses the **cached** response (no re-request of the PDF):
+
+```
+Popup                    Background                   Content script (tab)     Native
+  │                          │                              │                    │
+  │  uploadCurrentTabPdf      │                              │                    │
+  │ ───────────────────────► │  getPagePdfFromCache          │                    │
+  │                          │ ───────────────────────────► │ fetch(force-cache)  │
+  │                          │  { pdfBase64 }                │                    │
+  │                          │ ◄────────────────────────────│                    │
+  │                          │  POST /upload (multipart)     │                    │
+  │                          │ ───────────────────────────► Server :5001         │
+  │                          │  { sha256 }                   │                    │
+  │                          │  setSharedPdfUrl { pdfUrl }   │                    │
+  │                          │ ───────────────────────────────────────────────► │ UserDefaults set
+  │                          │  { ok }                      │                    │
+  │  { ok, pdfUrl }           │ ◄─────────────────────────────────────────────── │
+  │ ◄─────────────────────── │                              │                    │
+  │  refresh Shared PDF UI   │                              │                    │
+```
+
+The popup then shows the new URL in the Shared PDF section (same as after a share-extension upload). The app group key `lastSharedPdfUrl` is written by the **native handler** when it receives `setSharedPdfUrl` from the background (after the background has uploaded the PDF to the local server).
+
+---
+
+## 3. How the Web Extension gets the PDF URL
 
 All reads go through the **native message handler**, which reads from the **App Group**. Only the **popup** requests and displays the PDF URL.
 
-### 2a. Popup opens or clicks “Refresh”
+### 3a. Popup opens or clicks “Refresh”
 
 ```
 Popup                    Background                   Native (Safari app)
@@ -54,7 +83,7 @@ Popup                    Background                   Native (Safari app)
   │  popup shows URL or "—"  │                              │
 ```
 
-### 2b. User clicks “Clear URL”
+### 3b. User clicks “Clear URL”
 
 ```
 Popup                    Background                       Native
@@ -79,12 +108,13 @@ Popup                    Background                       Native
 
 | Event                        | Who reacts              | Effect                                      |
 |------------------------------|-------------------------|---------------------------------------------|
-| PDF uploaded (Share success) | No message to Web Ext   | —                                           |
-| User opens popup             | Popup `getSharedFile`   | Popup shows URL or "—"                      |
+| PDF uploaded (Share success)       | No message to Web Ext     | —                                           |
+| User clicks "Upload current PDF"   | Popup → Background → Native | PDF from cache uploaded; URL stored in app group |
+| User opens popup                   | Popup `getSharedFile`     | Popup shows URL or "—"                      |
 | User clicks “Refresh”        | Same                    | Popup refreshes display                     |
 | User clicks “Clear URL”      | Native clears app group | Popup shows "—"                             |
 
-**Shared storage:** App Group `UserDefaults` (suite: `group.com.powernotes.safari-demo-extension`), key `lastSharedPdfUrl`. Written by Share Extension; read/cleared by SafariWebExtensionHandler on behalf of the Web Extension.
+**Shared storage:** App Group `UserDefaults` (suite: `group.com.powernotes.safari-demo-extension`), key `lastSharedPdfUrl`. Written by Share Extension (local PDFs) or by SafariWebExtensionHandler when it receives `setSharedPdfUrl` (after popup upload of online PDF). Read/cleared by SafariWebExtensionHandler on behalf of the Web Extension.
 
 ---
 

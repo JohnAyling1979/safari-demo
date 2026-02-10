@@ -48,6 +48,25 @@ class SafariWebExtensionHandler: NSObject, NSExtensionRequestHandling {
             defaults?.removeObject(forKey: lastSharedPdfUrlKey)
             responsePayload["ok"] = true
             os_log(.default, "safari-demo:SafariWebExtensionHandler: clearSharedFile: removed pdfUrl from app group")
+        } else if let msg = message as? [String: Any], msg["type"] as? String == "setSharedPdfUrl" {
+            guard let pdfUrl = msg["pdfUrl"] as? String, !pdfUrl.isEmpty else {
+                responsePayload["ok"] = false
+                responsePayload["error"] = "Missing pdfUrl"
+                os_log(.default, "safari-demo:SafariWebExtensionHandler: setSharedPdfUrl: missing pdfUrl")
+                let response = NSExtensionItem()
+                if #available(iOS 15.0, macOS 11.0, *) {
+                    response.userInfo = [ SFExtensionMessageKey: responsePayload ]
+                } else {
+                    response.userInfo = [ "message": responsePayload ]
+                }
+                context.completeRequest(returningItems: [ response ], completionHandler: nil)
+                return
+            }
+            let defaults = UserDefaults(suiteName: appGroupSuiteName)
+            defaults?.set(pdfUrl, forKey: lastSharedPdfUrlKey)
+            defaults?.synchronize()
+            responsePayload["ok"] = true
+            os_log(.default, "safari-demo:SafariWebExtensionHandler: setSharedPdfUrl: wrote pdfUrl to app group: %@", pdfUrl)
         } else {
             responsePayload["echo"] = message ?? NSNull()
         }

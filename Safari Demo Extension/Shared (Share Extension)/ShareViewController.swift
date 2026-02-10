@@ -41,7 +41,6 @@ class ShareViewController: PlatformViewController {
         }
 
         let fileURLType = UTType.fileURL.identifier
-        let urlType = UTType.url.identifier
         let pdfType = UTType.pdf.identifier
         let group = DispatchGroup()
         var foundProvider = false
@@ -76,32 +75,6 @@ class ShareViewController: PlatformViewController {
                         } else {
                             self?.finishWithFailure("Not a PDF")
                         }
-                    }
-                    break
-                }
-                if provider.hasItemConformingToTypeIdentifier(urlType) {
-                    foundProvider = true
-                    group.enter()
-                    provider.loadItem(forTypeIdentifier: urlType, options: nil) { [weak self] item, _ in
-                        defer { group.leave() }
-                        // Resolve URL: direct cast, NSURL, or macOS may give URL as raw Data (UTF-8 bytes)
-                        var url: URL?
-                        if let u = item as? URL {
-                            url = u
-                        } else if let nu = item as? NSURL {
-                            url = nu as URL
-                        } else if let data = item as? Data, let str = String(data: data, encoding: .utf8), let u = URL(string: str) {
-                            url = u
-                        }
-                        if let url = url {
-                            if url.isFileURL {
-                                self?.handleFileURL(url)
-                            } else {
-                                self?.handleWebURL(url)
-                            }
-                            return
-                        }
-                        self?.finishWithFailure("Not a PDF")
                     }
                     break
                 }
@@ -162,28 +135,6 @@ class ShareViewController: PlatformViewController {
         } catch {
             finishWithFailure("Upload failed")
         }
-    }
-
-    private func handleWebURL(_ url: URL) {
-        var request = URLRequest(url: url)
-        request.httpMethod = "GET"
-        let task = URLSession.shared.dataTask(with: request) { [weak self] data, response, _ in
-            guard let self = self else { return }
-            guard let data = data,
-                  let http = response as? HTTPURLResponse,
-                  (200...299).contains(http.statusCode) else {
-                DispatchQueue.main.async { self.finishWithFailure("Upload failed") }
-                return
-            }
-            let contentType = (http.allHeaderFields["Content-Type"] as? String)?.lowercased() ?? ""
-            let isPDF = contentType.contains("application/pdf") || url.path.lowercased().hasSuffix(".pdf")
-            guard isPDF else {
-                DispatchQueue.main.async { self.finishWithFailure("Not a PDF") }
-                return
-            }
-            self.uploadPDF(data)
-        }
-        task.resume()
     }
 
     private func uploadPDF(_ data: Data) {
