@@ -125,6 +125,100 @@ export default defineBackground({
           return true;
         }
 
+        if (message.type === 'uploadCurrentTabPdf') {
+          const UPLOAD_URL = 'http://127.0.0.1:5001/upload';
+          const VIEW_URL_BASE = 'http://localhost:5001/view';
+          const appName = 'com.powernotes.safari-demo-extension';
+
+          (async () => {
+            try {
+              const [tab] = await browser.tabs.query({ active: true, currentWindow: true });
+              console.log('uploadCurrentTabPdf: query tab:', tab);
+              if (!tab?.id || !tab.url) {
+                sendResponse({ error: 'No active tab' });
+                return;
+              }
+              const url = tab.url;
+              const isPdfLike =
+                url.toLowerCase().endsWith('.pdf') ||
+                (() => {
+                  try {
+                    const u = new URL(url);
+                    return u.pathname.toLowerCase().endsWith('.pdf');
+                  } catch {
+                    return false;
+                  }
+                })();
+              if (!isPdfLike) {
+                sendResponse({ error: 'Current tab is not a PDF' });
+                return;
+              }
+
+              const contentResponse = (await browser.tabs.sendMessage(tab.id, {
+                type: 'getPagePdfFromCache',
+              })) as { pdfBase64?: string; contentType?: string; error?: string };
+              if (contentResponse?.error) {
+                sendResponse({ error: contentResponse.error });
+                return;
+              }
+              console.log('uploadCurrentTabPdf: contentResponse:', contentResponse);
+              const pdfBase64 = contentResponse?.pdfBase64;
+              if (!pdfBase64) {
+                sendResponse({ error: 'No PDF data from page' });
+                return;
+              }
+
+              const binaryString = atob(pdfBase64);
+              const bytes = new Uint8Array(binaryString.length);
+              for (let i = 0; i < binaryString.length; i++) {
+                bytes[i] = binaryString.charCodeAt(i);
+              }
+
+              const boundary = `Boundary-${crypto.randomUUID()}`;
+              const body = new Uint8Array([
+                ...new TextEncoder().encode(
+                  `--${boundary}\r\nContent-Disposition: form-data; name="file"; filename="upload.pdf"\r\nContent-Type: application/pdf\r\n\r\n`
+                ),
+                ...bytes,
+                ...new TextEncoder().encode(`\r\n--${boundary}--\r\n`),
+              ]);
+
+              const res = await fetch(UPLOAD_URL, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': `multipart/form-data; boundary=${boundary}`,
+                },
+                body,
+              });
+
+              if (!res.ok) {
+                sendResponse({ error: `Upload failed: ${res.status}` });
+                return;
+              }
+              const json = (await res.json()) as { sha256?: string };
+              const sha256 = json?.sha256;
+              if (!sha256) {
+                sendResponse({ error: 'Upload failed: no sha256 in response' });
+                return;
+              }
+              const viewUrl = `${VIEW_URL_BASE}/${sha256}`;
+
+              const nativeResponse = (await browser.runtime.sendNativeMessage(appName, {
+                type: 'setSharedPdfUrl',
+                pdfUrl: viewUrl,
+              })) as { ok?: boolean; error?: string };
+              if (nativeResponse?.ok !== true) {
+                sendResponse({ error: nativeResponse?.error ?? 'Failed to store PDF URL' });
+                return;
+              }
+              sendResponse({ ok: true, pdfUrl: viewUrl });
+            } catch (err) {
+              sendResponse({ error: String(err) });
+            }
+          })();
+          return true;
+        }
+
         sendResponse({ error: 'Unknown message type' });
         return false;
       }

@@ -33,6 +33,44 @@ export default defineContentScript({
             });
           return true;
         }
+
+        if (message.type === 'getPagePdfFromCache') {
+          (async () => {
+            try {
+              const url = window.location.href;
+              const res = await fetch(url, { cache: 'force-cache' });
+              console.log('getPagePdfFromCache: fetch res:', res);
+              if (!res.ok) {
+                sendResponse({ error: `Fetch failed: ${res.status}` });
+                return;
+              }
+              const contentType = (res.headers.get('Content-Type') ?? '').toLowerCase();
+              console.log('getPagePdfFromCache: contentType:', contentType);
+              const isPdf =
+                contentType.includes('application/pdf') ||
+                url.toLowerCase().endsWith('.pdf');
+              console.log('getPagePdfFromCache: isPdf:', isPdf);
+              if (!isPdf) {
+                sendResponse({ error: 'Not a PDF' });
+                return;
+              }
+              const arrayBuffer = await res.arrayBuffer();
+              console.log('getPagePdfFromCache: arrayBuffer:', arrayBuffer);
+              const bytes = new Uint8Array(arrayBuffer);
+              let binary = '';
+              const chunkSize = 8192;
+              for (let i = 0; i < bytes.length; i += chunkSize) {
+                const chunk = bytes.subarray(i, Math.min(i + chunkSize, bytes.length));
+                binary += String.fromCharCode(...chunk);
+              }
+              const pdfBase64 = btoa(binary);
+              sendResponse({ pdfBase64, contentType });
+            } catch (err) {
+              sendResponse({ error: String(err) });
+            }
+          })();
+          return true;
+        }
       }
     );
 

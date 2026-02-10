@@ -33,6 +33,17 @@ async function init() {
       ? `<a class="value url" id="sharedPdfLink" href="${escapeHtml(pdfUrl)}" target="_blank" rel="noopener">${escapeHtml(pdfUrl)}</a>`
       : '<p class="value" id="sharedPdfLink">—</p>';
 
+  const isPdfTab = (url: string | undefined): boolean => {
+    if (!url) return false;
+    try {
+      const u = new URL(url);
+      return u.pathname.toLowerCase().endsWith('.pdf');
+    } catch {
+      return url.toLowerCase().endsWith('.pdf');
+    }
+  };
+  const currentTabIsPdf = isPdfTab(tab?.url);
+
   app.innerHTML = `
     <div class="popup">
       <h1>Safari Demo</h1>
@@ -41,6 +52,7 @@ async function init() {
         <p class="label">Uploaded PDF URL:</p>
         ${sharedPdfDisplay}
         <div class="button-row">
+          <button id="uploadCurrentPdf" ${currentTabIsPdf ? '' : 'disabled'}>Upload current PDF</button>
           <button id="refreshSharedFile">Refresh</button>
           <button id="clearSharedFile">Clear URL</button>
         </div>
@@ -150,6 +162,34 @@ async function init() {
       el.outerHTML = '<p class="value" id="sharedPdfLink">—</p>';
     }
   };
+
+  document.getElementById('uploadCurrentPdf')?.addEventListener('click', async () => {
+    console.log('uploadCurrentTabPdf clicked');
+    const btn = document.getElementById('uploadCurrentPdf');
+    if (btn) {
+      btn.textContent = 'Uploading…';
+      (btn as HTMLButtonElement).disabled = true;
+    }
+    try {
+      const res = (await browser.runtime.sendMessage({
+        type: 'uploadCurrentTabPdf',
+      })) as { ok?: boolean; pdfUrl?: string; error?: string };
+
+      console.log('uploadCurrentTabPdf response:', res);
+      if (res?.ok === true && res?.pdfUrl) {
+        updateSharedPdfDisplay(res.pdfUrl);
+      } else {
+        alert(res?.error ?? 'Upload failed');
+      }
+    } catch (err) {
+      alert(String(err));
+    } finally {
+      if (btn) {
+        btn.textContent = 'Upload current PDF';
+        (btn as HTMLButtonElement).disabled = !currentTabIsPdf;
+      }
+    }
+  });
 
   document.getElementById('refreshSharedFile')?.addEventListener('click', async () => {
     const sharedFile = await browser.runtime
