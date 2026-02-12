@@ -5,7 +5,7 @@ export default defineConfig({
     name: 'Safari Demo Extension',
     description: 'Demo extension showcasing popup, options, background, content script, and new tab',
     permissions: ['storage', 'activeTab', 'tabs', 'nativeMessaging'],
-    host_permissions: ['*://*/*', 'http://127.0.0.1:5001/*', 'http://localhost:5001/*'],
+    host_permissions: ['*://*/*', 'http://files.powernotes.local:8006/*'],
     browser_action: {
       default_icon: {
         16: '/icon-16.png',

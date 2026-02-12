@@ -2,8 +2,10 @@
 const sessionId = crypto.randomUUID();
 const loadedAt = new Date().toISOString();
 
-const UPLOAD_URL = 'http://127.0.0.1:5001/upload';
-const VIEW_URL_BASE = 'http://localhost:5001/view';
+const UPLOAD_URL = 'http://files.powernotes.local:8006/v1/projects/C0KHpxVnR8CYYFictWe0Lg/documents/uploads';
+const METADATA_URL = 'http://files.powernotes.local:8006/v1/projects/C0KHpxVnR8CYYFictWe0Lg/documents/metadata';
+const VIEW_URL_BASE = 'http://files.powernotes.local:8006/v1/projects/C0KHpxVnR8CYYFictWe0Lg/documents/files';
+const ACCESS_TOKEN = 'jVwg6urBSxGbsgRZYtT0ug'; // local dummy token for demo
 
 type PendingUpload = {
   resolve: (value: { ok: true; pdfUrl: string } | { error: string }) => void;
@@ -169,7 +171,10 @@ export default defineBackground({
 
               const res = await fetch(UPLOAD_URL, {
                 method: 'POST',
-                headers: { 'Content-Type': `multipart/form-data; boundary=${boundary}` },
+                headers: {
+                  'Content-Type': `multipart/form-data; boundary=${boundary}`,
+                  'X-ACCESS-TOKEN': ACCESS_TOKEN,
+                },
                 body,
               });
 
@@ -178,11 +183,30 @@ export default defineBackground({
                 delete pendingUploads[uploadId];
                 return;
               }
-              const json = (await res.json()) as { sha256?: string };
+              const json = (await res.json()) as { sha256?: string; size?: number };
               const sha256 = json?.sha256;
 
               if (!sha256) {
                 pending.resolve({ error: 'Upload failed: no sha256 in response' });
+                delete pendingUploads[uploadId];
+                return;
+              }
+
+              const metadataRes = await fetch(METADATA_URL, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'X-ACCESS-TOKEN': ACCESS_TOKEN,
+                },
+                body: JSON.stringify({
+                  sha256,
+                  filename: 'upload.pdf',
+                  headers: { 'Content-Type': 'application/pdf' },
+                }),
+              });
+
+              if (!metadataRes.ok) {
+                pending.resolve({ error: `Metadata failed: ${metadataRes.status}` });
                 delete pendingUploads[uploadId];
                 return;
               }
@@ -265,6 +289,11 @@ export default defineBackground({
               }
               if (!tab.url.startsWith('http://') && !tab.url.startsWith('https://')) {
                 sendResponse({ isPdf: false });
+                return;
+              }
+              // Fallback: Safari's native PDF viewer doesn't run content scripts, so treat .pdf URLs as PDF
+              if (tab.url.toLowerCase().endsWith('.pdf')) {
+                sendResponse({ isPdf: true });
                 return;
               }
               const res = (await browser.tabs.sendMessage(tab.id, { type: 'checkIsPdf' }).catch(() => null)) as { isPdf?: boolean } | null;

@@ -15,8 +15,10 @@ typealias PlatformViewController = NSViewController
 
 private let appGroupSuiteName = "group.com.powernotes.safari-demo-extension"
 private let lastSharedPdfUrlKey = "lastSharedPdfUrl"
-private let uploadURLString = "http://127.0.0.1:5001/upload"
-private let pdfViewURLBase = "http://localhost:5001/view"
+private let uploadURLString = "http://files.powernotes.local:8006/v1/projects/C0KHpxVnR8CYYFictWe0Lg/documents/uploads"
+private let metadataURLString = "http://files.powernotes.local:8006/v1/projects/C0KHpxVnR8CYYFictWe0Lg/documents/metadata"
+private let pdfViewURLBase = "http://files.powernotes.local:8006/v1/projects/C0KHpxVnR8CYYFictWe0Lg/documents/files"
+private let accessToken = "jVwg6urBSxGbsgRZYtT0ug" // local dummy token for demo
 
 class ShareViewController: PlatformViewController {
 
@@ -69,7 +71,7 @@ class ShareViewController: PlatformViewController {
                     provider.loadItem(forTypeIdentifier: pdfType, options: nil) { [weak self] item, _ in
                         defer { group.leave() }
                         if let data = item as? Data {
-                            self?.uploadPDF(data)
+                            self?.uploadPDF(data, filename: "upload.pdf")
                         } else if let url = item as? URL {
                             self?.handleFileURL(url)
                         } else {
@@ -91,7 +93,7 @@ class ShareViewController: PlatformViewController {
     /// Handle Data from fileURL loadItem: macOS may give path as UTF-8 bytes, file URL string, or file contents.
     private func handleFileURLItemAsData(_ data: Data) {
         if data.prefix(4).elementsEqual("%PDF".utf8) {
-            uploadPDF(data)
+            uploadPDF(data, filename: "upload.pdf")
             return
         }
         guard let str = String(data: data, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines),
@@ -131,13 +133,13 @@ class ShareViewController: PlatformViewController {
         }
         do {
             let data = try Data(contentsOf: url)
-            uploadPDF(data)
+            uploadPDF(data, filename: url.lastPathComponent)
         } catch {
             finishWithFailure("Upload failed")
         }
     }
 
-    private func uploadPDF(_ data: Data) {
+    private func uploadPDF(_ data: Data, filename: String = "upload.pdf") {
         guard let url = URL(string: uploadURLString) else {
             finishWithFailure("Upload failed")
             return
@@ -146,9 +148,10 @@ class ShareViewController: PlatformViewController {
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
+        request.setValue(accessToken, forHTTPHeaderField: "X-ACCESS-TOKEN")
         var body = Data()
         body.append("--\(boundary)\r\n".data(using: .utf8)!)
-        body.append("Content-Disposition: form-data; name=\"file\"; filename=\"upload.pdf\"\r\n".data(using: .utf8)!)
+        body.append("Content-Disposition: form-data; name=\"file\"; filename=\"\(filename)\"\r\n".data(using: .utf8)!)
         body.append("Content-Type: application/pdf\r\n\r\n".data(using: .utf8)!)
         body.append(data)
         body.append("\r\n--\(boundary)--\r\n".data(using: .utf8)!)
@@ -169,6 +172,38 @@ class ShareViewController: PlatformViewController {
                   let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
                   let sha256 = json["sha256"] as? String,
                   !sha256.isEmpty else {
+                DispatchQueue.main.async { self.finishWithFailure("Upload failed") }
+                return
+            }
+            self.callMetadataEndpoint(sha256: sha256, filename: filename)
+        }
+        task.resume()
+    }
+
+    private func callMetadataEndpoint(sha256: String, filename: String) {
+        guard let url = URL(string: metadataURLString) else {
+            DispatchQueue.main.async { [weak self] in self?.finishWithFailure("Upload failed") }
+            return
+        }
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue(accessToken, forHTTPHeaderField: "X-ACCESS-TOKEN")
+        let body: [String: Any] = [
+            "sha256": sha256,
+            "filename": filename,
+            "headers": ["Content-Type": "application/pdf"]
+        ]
+        request.httpBody = try? JSONSerialization.data(withJSONObject: body)
+
+        let task = URLSession.shared.dataTask(with: request) { [weak self] _, response, error in
+            guard let self = self else { return }
+            if let _ = error {
+                DispatchQueue.main.async { self.finishWithFailure("Upload failed") }
+                return
+            }
+            guard let http = response as? HTTPURLResponse,
+                  (200...299).contains(http.statusCode) else {
                 DispatchQueue.main.async { self.finishWithFailure("Upload failed") }
                 return
             }

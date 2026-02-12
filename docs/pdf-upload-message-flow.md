@@ -1,5 +1,7 @@
 # PDF upload – message flow
 
+**Endpoints:** Upload → `UPLOAD_URL` (with header `X-ACCESS-TOKEN`); then POST to metadata URL with `{ sha256, filename }`; view URL = `VIEW_URL_BASE/{sha256}`. See `pdf-upload-spec.md` for variable definitions and full API.
+
 When a PDF is shared and uploaded, the Share Extension and Web Extension run in **separate processes**. The Share Extension never sends a message to the Web Extension. The Web Extension learns about the new URL only when something triggers a read from the app group.
 
 **Where the PDF URL is shown:** Only in the **popup** (Shared PDF section). The content overlay does **not** display the PDF URL.
