@@ -251,6 +251,31 @@ export default defineBackground({
           return true;
         }
 
+        if (message.type === 'checkCurrentTabIsPdf') {
+          const tabId = (message as { type: string; tabId?: number }).tabId;
+          (async () => {
+            try {
+              const tab =
+                tabId != null
+                  ? await browser.tabs.get(tabId)
+                  : (await browser.tabs.query({ active: true, currentWindow: true }))[0];
+              if (!tab?.id || !tab.url) {
+                sendResponse({ isPdf: false });
+                return;
+              }
+              if (!tab.url.startsWith('http://') && !tab.url.startsWith('https://')) {
+                sendResponse({ isPdf: false });
+                return;
+              }
+              const res = (await browser.tabs.sendMessage(tab.id, { type: 'checkIsPdf' }).catch(() => null)) as { isPdf?: boolean } | null;
+              sendResponse({ isPdf: res?.isPdf === true });
+            } catch {
+              sendResponse({ isPdf: false });
+            }
+          })();
+          return true;
+        }
+
         if (message.type === 'uploadCurrentTabPdf') {
           (async () => {
             try {
@@ -259,18 +284,7 @@ export default defineBackground({
                 sendResponse({ error: 'No active tab' });
                 return;
               }
-              const url = tab.url;
-              const isPdfLike =
-                url.toLowerCase().endsWith('.pdf') ||
-                (() => {
-                  try {
-                    const u = new URL(url);
-                    return u.pathname.toLowerCase().endsWith('.pdf');
-                  } catch {
-                    return false;
-                  }
-                })();
-              if (!isPdfLike) {
+              if (!tab.url.startsWith('http://') && !tab.url.startsWith('https://')) {
                 sendResponse({ error: 'Current tab is not a PDF' });
                 return;
               }

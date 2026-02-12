@@ -17,11 +17,17 @@ async function init() {
       }
     : { title: 'N/A', url: 'N/A' };
 
-  // Get count, session info, and shared PDF URL from background
-  const [{ count }, { sessionId, loadedAt }, sharedFile] = await Promise.all([
+  const pdfCheckPromise =
+    tab?.id && tab?.url && (tab.url.startsWith('http://') || tab.url.startsWith('https://'))
+      ? browser.runtime.sendMessage({ type: 'checkCurrentTabIsPdf', tabId: tab.id }).catch(() => ({ isPdf: false }))
+      : Promise.resolve({ isPdf: false });
+
+  // Get count, session info, shared PDF URL, and current-tab PDF check from background
+  const [{ count }, { sessionId, loadedAt }, sharedFile, pdfCheck] = await Promise.all([
     browser.runtime.sendMessage({ type: 'getCount' }),
     browser.runtime.sendMessage({ type: 'getSessionInfo' }),
     browser.runtime.sendMessage({ type: 'getSharedFile' }).catch(() => ({ pdfUrl: null })),
+    pdfCheckPromise,
   ]);
 
   const truncatedSessionId =
@@ -33,16 +39,7 @@ async function init() {
       ? `<a class="value url" id="sharedPdfLink" href="${escapeHtml(pdfUrl)}" target="_blank" rel="noopener">${escapeHtml(pdfUrl)}</a>`
       : '<p class="value" id="sharedPdfLink">—</p>';
 
-  const isPdfTab = (url: string | undefined): boolean => {
-    if (!url) return false;
-    try {
-      const u = new URL(url);
-      return u.pathname.toLowerCase().endsWith('.pdf');
-    } catch {
-      return url.toLowerCase().endsWith('.pdf');
-    }
-  };
-  const currentTabIsPdf = isPdfTab(tab?.url);
+  const currentTabIsPdf = (pdfCheck as { isPdf?: boolean })?.isPdf === true;
 
   app.innerHTML = `
     <div class="popup">

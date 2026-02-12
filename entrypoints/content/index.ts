@@ -34,6 +34,23 @@ export default defineContentScript({
           return true;
         }
 
+        if (message.type === 'checkIsPdf') {
+          (async () => {
+            try {
+              const url = window.location.href;
+              const res = await fetch(url, { method: 'HEAD', cache: 'force-cache' });
+              const contentType = (res.headers.get('Content-Type') ?? '').toLowerCase();
+              const isPdf =
+                contentType.includes('application/pdf') ||
+                url.toLowerCase().endsWith('.pdf');
+              sendResponse({ isPdf });
+            } catch {
+              sendResponse({ isPdf: false });
+            }
+          })();
+          return true;
+        }
+
         if (message.type === 'uploadPagePdf') {
           const CHUNK_RAW_SIZE = 12 * 1024 * 1024; // ~16 MB base64 per message (half of ~32 MB ceiling)
           function bytesToBase64(chunk: Uint8Array): string {
