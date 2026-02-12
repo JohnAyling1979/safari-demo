@@ -34,37 +34,54 @@ export default defineContentScript({
           return true;
         }
 
-        if (message.type === 'getPagePdfFromCache') {
+        if (message.type === 'uploadPagePdf') {
+          const CHUNK_RAW_SIZE = 12 * 1024 * 1024; // ~16 MB base64 per message (half of ~32 MB ceiling)
+          function bytesToBase64(chunk: Uint8Array): string {
+            let binary = '';
+            const subSize = 8192;
+            for (let i = 0; i < chunk.length; i += subSize) {
+              const sub = chunk.subarray(i, Math.min(i + subSize, chunk.length));
+              binary += String.fromCharCode.apply(null, Array.from(sub));
+            }
+            return btoa(binary);
+          }
+
           (async () => {
             try {
               const url = window.location.href;
               const res = await fetch(url, { cache: 'force-cache' });
-              console.log('getPagePdfFromCache: fetch res:', res);
               if (!res.ok) {
                 sendResponse({ error: `Fetch failed: ${res.status}` });
                 return;
               }
               const contentType = (res.headers.get('Content-Type') ?? '').toLowerCase();
-              console.log('getPagePdfFromCache: contentType:', contentType);
               const isPdf =
                 contentType.includes('application/pdf') ||
                 url.toLowerCase().endsWith('.pdf');
-              console.log('getPagePdfFromCache: isPdf:', isPdf);
               if (!isPdf) {
                 sendResponse({ error: 'Not a PDF' });
                 return;
               }
               const arrayBuffer = await res.arrayBuffer();
-              console.log('getPagePdfFromCache: arrayBuffer:', arrayBuffer);
               const bytes = new Uint8Array(arrayBuffer);
-              let binary = '';
-              const chunkSize = 8192;
-              for (let i = 0; i < bytes.length; i += chunkSize) {
-                const chunk = bytes.subarray(i, Math.min(i + chunkSize, bytes.length));
-                binary += String.fromCharCode(...chunk);
+
+              const totalChunks = Math.ceil(bytes.length / CHUNK_RAW_SIZE);
+              const uploadId = crypto.randomUUID();
+              sendResponse({ uploadId, totalChunks });
+
+              for (let i = 0; i < totalChunks; i++) {
+                const start = i * CHUNK_RAW_SIZE;
+                const end = Math.min(start + CHUNK_RAW_SIZE, bytes.length);
+                const chunk = bytes.subarray(start, end);
+                const chunkBase64 = bytesToBase64(chunk);
+                await browser.runtime.sendMessage({
+                  type: 'pdfChunk',
+                  uploadId,
+                  chunkIndex: i,
+                  totalChunks,
+                  chunkBase64,
+                });
               }
-              const pdfBase64 = btoa(binary);
-              sendResponse({ pdfBase64, contentType });
             } catch (err) {
               sendResponse({ error: String(err) });
             }

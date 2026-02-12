@@ -2,6 +2,17 @@
 const sessionId = crypto.randomUUID();
 const loadedAt = new Date().toISOString();
 
+const UPLOAD_URL = 'http://127.0.0.1:5001/upload';
+const VIEW_URL_BASE = 'http://localhost:5001/view';
+
+type PendingUpload = {
+  resolve: (value: { ok: true; pdfUrl: string } | { error: string }) => void;
+  reject: (reason: unknown) => void;
+  totalChunks: number;
+  chunks: Record<number, Uint8Array>;
+};
+const pendingUploads: Record<string, PendingUpload> = {};
+
 export default defineBackground({
   // Required for iOS/iPadOS - persistent background not supported
   persistent: false,
@@ -81,6 +92,121 @@ export default defineBackground({
           return false;
         }
 
+        if (message.type === 'pdfChunk') {
+          const msg = message as {
+            type: string;
+            uploadId: string;
+            chunkIndex: number;
+            totalChunks: number;
+            chunkBase64?: string;
+          };
+          const { uploadId, chunkIndex, totalChunks } = msg;
+          const pending = pendingUploads[uploadId];
+
+          if (!pending) return false;
+
+          const b64 = msg.chunkBase64;
+          if (typeof b64 !== 'string' || b64.length === 0) {
+            console.warn('pdfChunk: missing or empty chunkBase64');
+            pending.chunks[chunkIndex] = new Uint8Array(0);
+          } else {
+            try {
+              const binary = atob(b64);
+              const chunk = new Uint8Array(binary.length);
+              for (let i = 0; i < binary.length; i++) chunk[i] = binary.charCodeAt(i);
+              pending.chunks[chunkIndex] = chunk;
+            } catch (e) {
+              console.warn('pdfChunk: atob failed for chunk', chunkIndex, e);
+              pending.chunks[chunkIndex] = new Uint8Array(0);
+            }
+          }
+
+          // Only assemble when we have every index 0..totalChunks-1 (no duplicates, no gaps)
+          let allPresent = true;
+          for (let i = 0; i < totalChunks; i++) {
+            if (pending.chunks[i] === undefined) {
+              allPresent = false;
+              break;
+            }
+          }
+          if (!allPresent) return false;
+
+          (async () => {
+            try {
+              const order = Array.from({ length: totalChunks }, (_, i) => i);
+              let totalLength = 0;
+              for (const i of order) {
+                const c = pending.chunks[i];
+                if (c == null) {
+                  pending.resolve({ error: 'Missing chunk during reassembly' });
+                  delete pendingUploads[uploadId];
+                  return;
+                }
+                totalLength += c.length;
+              }
+              const bytes = new Uint8Array(totalLength);
+              let offset = 0;
+              for (const i of order) {
+                bytes.set(pending.chunks[i], offset);
+                offset += pending.chunks[i].length;
+              }
+
+              if (bytes.length === 0) {
+                pending.resolve({ error: 'Reassembled PDF is empty (chunks may not have been received correctly)' });
+                delete pendingUploads[uploadId];
+                return;
+              }
+
+              const boundary = `Boundary-${crypto.randomUUID()}`;
+              const preamble = new TextEncoder().encode(
+                `--${boundary}\r\nContent-Disposition: form-data; name="file"; filename="upload.pdf"\r\nContent-Type: application/pdf\r\n\r\n`
+              );
+              const suffix = new TextEncoder().encode(`\r\n--${boundary}--\r\n`);
+              const body = new Uint8Array(preamble.length + bytes.length + suffix.length);
+              body.set(preamble, 0);
+              body.set(bytes, preamble.length);
+              body.set(suffix, preamble.length + bytes.length);
+
+              const res = await fetch(UPLOAD_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': `multipart/form-data; boundary=${boundary}` },
+                body,
+              });
+
+              if (!res.ok) {
+                pending.resolve({ error: `Upload failed: ${res.status}` });
+                delete pendingUploads[uploadId];
+                return;
+              }
+              const json = (await res.json()) as { sha256?: string };
+              const sha256 = json?.sha256;
+
+              if (!sha256) {
+                pending.resolve({ error: 'Upload failed: no sha256 in response' });
+                delete pendingUploads[uploadId];
+                return;
+              }
+
+              const pdfUrl = `${VIEW_URL_BASE}/${sha256}`;
+              const appName = 'com.powernotes.safari-demo-extension';
+              const nativeResponse = (await browser.runtime.sendNativeMessage(appName, {
+                type: 'setSharedPdfUrl',
+                pdfUrl,
+              })) as { ok?: boolean; error?: string };
+
+              if (nativeResponse?.ok !== true) {
+                pending.resolve({ error: nativeResponse?.error ?? 'Failed to store PDF URL' });
+              } else {
+                pending.resolve({ ok: true, pdfUrl });
+              }
+            } catch (err) {
+              pending.resolve({ error: String(err) });
+            }
+            delete pendingUploads[uploadId];
+          })();
+          return false;
+        }
+
         if (message.type === 'getSharedFile') {
           const appName = 'com.powernotes.safari-demo-extension';
           browser.runtime
@@ -126,14 +252,9 @@ export default defineBackground({
         }
 
         if (message.type === 'uploadCurrentTabPdf') {
-          const UPLOAD_URL = 'http://127.0.0.1:5001/upload';
-          const VIEW_URL_BASE = 'http://localhost:5001/view';
-          const appName = 'com.powernotes.safari-demo-extension';
-
           (async () => {
             try {
               const [tab] = await browser.tabs.query({ active: true, currentWindow: true });
-              console.log('uploadCurrentTabPdf: query tab:', tab);
               if (!tab?.id || !tab.url) {
                 sendResponse({ error: 'No active tab' });
                 return;
@@ -155,63 +276,36 @@ export default defineBackground({
               }
 
               const contentResponse = (await browser.tabs.sendMessage(tab.id, {
-                type: 'getPagePdfFromCache',
-              })) as { pdfBase64?: string; contentType?: string; error?: string };
+                type: 'uploadPagePdf',
+              })) as { uploadId?: string; totalChunks?: number; error?: string };
+
               if (contentResponse?.error) {
                 sendResponse({ error: contentResponse.error });
                 return;
               }
-              console.log('uploadCurrentTabPdf: contentResponse:', contentResponse);
-              const pdfBase64 = contentResponse?.pdfBase64;
-              if (!pdfBase64) {
+              const uploadId = contentResponse?.uploadId;
+              const totalChunks = contentResponse?.totalChunks ?? 0;
+              if (!uploadId || totalChunks <= 0) {
                 sendResponse({ error: 'No PDF data from page' });
                 return;
               }
 
-              const binaryString = atob(pdfBase64);
-              const bytes = new Uint8Array(binaryString.length);
-              for (let i = 0; i < binaryString.length; i++) {
-                bytes[i] = binaryString.charCodeAt(i);
-              }
-
-              const boundary = `Boundary-${crypto.randomUUID()}`;
-              const body = new Uint8Array([
-                ...new TextEncoder().encode(
-                  `--${boundary}\r\nContent-Disposition: form-data; name="file"; filename="upload.pdf"\r\nContent-Type: application/pdf\r\n\r\n`
-                ),
-                ...bytes,
-                ...new TextEncoder().encode(`\r\n--${boundary}--\r\n`),
-              ]);
-
-              const res = await fetch(UPLOAD_URL, {
-                method: 'POST',
-                headers: {
-                  'Content-Type': `multipart/form-data; boundary=${boundary}`,
-                },
-                body,
+              const result = await new Promise<
+                { ok: true; pdfUrl: string } | { error: string }
+              >((resolve, reject) => {
+                pendingUploads[uploadId] = {
+                  resolve,
+                  reject,
+                  totalChunks,
+                  chunks: {},
+                };
               });
 
-              if (!res.ok) {
-                sendResponse({ error: `Upload failed: ${res.status}` });
-                return;
+              if ('error' in result) {
+                sendResponse({ error: result.error });
+              } else {
+                sendResponse({ ok: true, pdfUrl: result.pdfUrl });
               }
-              const json = (await res.json()) as { sha256?: string };
-              const sha256 = json?.sha256;
-              if (!sha256) {
-                sendResponse({ error: 'Upload failed: no sha256 in response' });
-                return;
-              }
-              const viewUrl = `${VIEW_URL_BASE}/${sha256}`;
-
-              const nativeResponse = (await browser.runtime.sendNativeMessage(appName, {
-                type: 'setSharedPdfUrl',
-                pdfUrl: viewUrl,
-              })) as { ok?: boolean; error?: string };
-              if (nativeResponse?.ok !== true) {
-                sendResponse({ error: nativeResponse?.error ?? 'Failed to store PDF URL' });
-                return;
-              }
-              sendResponse({ ok: true, pdfUrl: viewUrl });
             } catch (err) {
               sendResponse({ error: String(err) });
             }
