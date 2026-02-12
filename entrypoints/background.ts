@@ -12,6 +12,7 @@ type PendingUpload = {
   reject: (reason: unknown) => void;
   totalChunks: number;
   chunks: Record<number, Uint8Array>;
+  filename: string;
 };
 const pendingUploads: Record<string, PendingUpload> = {};
 
@@ -159,9 +160,11 @@ export default defineBackground({
                 return;
               }
 
+              const filename = pending.filename || 'upload.pdf';
+              const safeFilename = filename.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
               const boundary = `Boundary-${crypto.randomUUID()}`;
               const preamble = new TextEncoder().encode(
-                `--${boundary}\r\nContent-Disposition: form-data; name="file"; filename="upload.pdf"\r\nContent-Type: application/pdf\r\n\r\n`
+                `--${boundary}\r\nContent-Disposition: form-data; name="file"; filename="${safeFilename}"\r\nContent-Type: application/pdf\r\n\r\n`
               );
               const suffix = new TextEncoder().encode(`\r\n--${boundary}--\r\n`);
               const body = new Uint8Array(preamble.length + bytes.length + suffix.length);
@@ -200,7 +203,7 @@ export default defineBackground({
                 },
                 body: JSON.stringify({
                   sha256,
-                  filename: 'upload.pdf',
+                  filename: filename,
                   headers: { 'Content-Type': 'application/pdf' },
                 }),
               });
@@ -320,7 +323,7 @@ export default defineBackground({
 
               const contentResponse = (await browser.tabs.sendMessage(tab.id, {
                 type: 'uploadPagePdf',
-              })) as { uploadId?: string; totalChunks?: number; error?: string };
+              })) as { uploadId?: string; totalChunks?: number; filename?: string; error?: string };
 
               if (contentResponse?.error) {
                 sendResponse({ error: contentResponse.error });
@@ -328,6 +331,7 @@ export default defineBackground({
               }
               const uploadId = contentResponse?.uploadId;
               const totalChunks = contentResponse?.totalChunks ?? 0;
+              const filename = contentResponse?.filename ?? 'upload.pdf';
               if (!uploadId || totalChunks <= 0) {
                 sendResponse({ error: 'No PDF data from page' });
                 return;
@@ -341,6 +345,7 @@ export default defineBackground({
                   reject,
                   totalChunks,
                   chunks: {},
+                  filename,
                 };
               });
 

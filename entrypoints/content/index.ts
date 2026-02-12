@@ -79,12 +79,24 @@ export default defineContentScript({
                 sendResponse({ error: 'Not a PDF' });
                 return;
               }
+              // Derive filename from URL path (e.g. .../Resources/PDF_TestPage.pdf -> PDF_TestPage.pdf)
+              let filename = 'upload.pdf';
+              try {
+                const pathname = new URL(url).pathname;
+                const segment = pathname.split('/').filter(Boolean).pop();
+                if (segment && segment.toLowerCase().endsWith('.pdf')) {
+                  filename = segment;
+                }
+              } catch {
+                /* keep upload.pdf */
+              }
+
               const arrayBuffer = await res.arrayBuffer();
               const bytes = new Uint8Array(arrayBuffer);
 
               const totalChunks = Math.ceil(bytes.length / CHUNK_RAW_SIZE);
               const uploadId = crypto.randomUUID();
-              sendResponse({ uploadId, totalChunks });
+              sendResponse({ uploadId, totalChunks, filename });
 
               for (let i = 0; i < totalChunks; i++) {
                 const start = i * CHUNK_RAW_SIZE;

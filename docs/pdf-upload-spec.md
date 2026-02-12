@@ -40,7 +40,8 @@ The feature supports **two ways** to upload a PDF and store a “shared PDF” v
 - **Headers:**
   - `Content-Type: application/json`
   - `X-ACCESS-TOKEN: <ACCESS_TOKEN>`
-- **Body:** `{ "sha256": "<from upload response>", "filename": "filename.pdf", "headers": { "Content-Type": "application/pdf" } }`
+- **Body:** `{ "sha256": "<from upload response>", "filename": "<actual filename when available>", "headers": { "Content-Type": "application/pdf" } }`  
+  Use the real filename when available: Share Extension uses the file’s name (e.g. `url.lastPathComponent`) or `"upload.pdf"`; Web Extension uses the last path segment of the tab URL (e.g. `PDF_TestPage.pdf`) or `"upload.pdf"`.
 
 - **Success:** 2xx. After this, the view URL is valid.
 
