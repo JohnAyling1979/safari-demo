@@ -2,10 +2,10 @@
 const sessionId = crypto.randomUUID();
 const loadedAt = new Date().toISOString();
 
-const UPLOAD_URL = 'http://files.powernotes.local:8006/v1/projects/C0KHpxVnR8CYYFictWe0Lg/documents/uploads';
-const METADATA_URL = 'http://files.powernotes.local:8006/v1/projects/C0KHpxVnR8CYYFictWe0Lg/documents/metadata';
-const VIEW_URL_BASE = 'http://files.powernotes.local:8006/v1/projects/C0KHpxVnR8CYYFictWe0Lg/documents/files';
-const ACCESS_TOKEN = 'jVwg6urBSxGbsgRZYtT0ug'; // local dummy token for demo
+const UPLOAD_URL = 'http://localhost:8006/v1/projects/EJ5a_5shRbOumYBfRyXhuQ/documents/uploads';
+const METADATA_URL = 'http://localhost:8006/v1/projects/EJ5a_5shRbOumYBfRyXhuQ/documents/metadata';
+const VIEW_URL_BASE = 'http://localhost:8006/v1/projects/EJ5a_5shRbOumYBfRyXhuQ/documents/files';
+const ACCESS_TOKEN = 'kYQRAu8MSLSK29MjlY54fA'; // local dummy token for demo
 
 type PendingUpload = {
   resolve: (value: { ok: true; pdfUrl: string } | { error: string }) => void;
@@ -214,7 +214,7 @@ export default defineBackground({
                 return;
               }
 
-              const pdfUrl = `${VIEW_URL_BASE}/${sha256}`;
+              const pdfUrl = `${VIEW_URL_BASE}/${sha256}?access_token=${encodeURIComponent(ACCESS_TOKEN)}`;
               const appName = 'com.powernotes.safari-demo-extension';
               const nativeResponse = (await browser.runtime.sendNativeMessage(appName, {
                 type: 'setSharedPdfUrl',

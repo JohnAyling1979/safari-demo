@@ -55,8 +55,8 @@ All requests require authentication via header: `X-ACCESS-TOKEN: <token>`.
 
 ### 2.3 View URL
 
-- **Format**: `{VIEW_URL_BASE}/{sha256}`  
-  Example: `http://files.powernotes.local:8006/v1/projects/{projectId}/documents/files/{sha256}`
+- **Format**: `{VIEW_URL_BASE}/{sha256}?access_token={ACCESS_TOKEN}`  
+  Example: `http://files.powernotes.local:8006/v1/projects/{projectId}/documents/files/{sha256}?access_token={ACCESS_TOKEN}`
 
 ---
 

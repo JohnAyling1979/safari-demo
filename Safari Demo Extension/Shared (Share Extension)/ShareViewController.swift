@@ -15,10 +15,10 @@ typealias PlatformViewController = NSViewController
 
 private let appGroupSuiteName = "group.com.powernotes.safari-demo-extension"
 private let lastSharedPdfUrlKey = "lastSharedPdfUrl"
-private let uploadURLString = "http://files.powernotes.local:8006/v1/projects/C0KHpxVnR8CYYFictWe0Lg/documents/uploads"
-private let metadataURLString = "http://files.powernotes.local:8006/v1/projects/C0KHpxVnR8CYYFictWe0Lg/documents/metadata"
-private let pdfViewURLBase = "http://files.powernotes.local:8006/v1/projects/C0KHpxVnR8CYYFictWe0Lg/documents/files"
-private let accessToken = "jVwg6urBSxGbsgRZYtT0ug" // local dummy token for demo
+private let uploadURLString = "http://localhost:8006/v1/projects/EJ5a_5shRbOumYBfRyXhuQ/documents/uploads"
+private let metadataURLString = "http://localhost:8006/v1/projects/EJ5a_5shRbOumYBfRyXhuQ/documents/metadata"
+private let pdfViewURLBase = "http://localhost:8006/v1/projects/EJ5a_5shRbOumYBfRyXhuQ/documents/files"
+private let accessToken = "kYQRAu8MSLSK29MjlY54fA" // local dummy token for demo
 
 class ShareViewController: PlatformViewController {
 
@@ -207,7 +207,8 @@ class ShareViewController: PlatformViewController {
                 DispatchQueue.main.async { self.finishWithFailure("Upload failed") }
                 return
             }
-            let viewURL = "\(pdfViewURLBase)/\(sha256)"
+            let encodedToken = accessToken.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? accessToken
+            let viewURL = "\(pdfViewURLBase)/\(sha256)?access_token=\(encodedToken)"
             UserDefaults(suiteName: appGroupSuiteName)?.set(viewURL, forKey: lastSharedPdfUrlKey)
             UserDefaults(suiteName: appGroupSuiteName)?.synchronize()
             DispatchQueue.main.async { self.finishWithSuccess() }
